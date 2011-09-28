@@ -266,6 +266,11 @@ public final class ThreadsListActivity extends ListActivity {
 
             return true;
         }
+        //if the search button is pressed, launch SearchActivity
+        //else if(keyCode == KeyEvent.KEYCODE_SEARCH){
+        	//start activity
+        //}
+        
         else {
             return super.onKeyDown(keyCode, event);
         }
