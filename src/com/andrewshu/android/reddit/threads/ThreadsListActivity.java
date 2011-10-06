@@ -253,11 +253,13 @@ public final class ThreadsListActivity extends ListActivity {
     	super.onActivityResult(requestCode, resultCode, intent);
     	
     	switch(requestCode) {
+    	//add constant to specify search
     	case Constants.ACTIVITY_PICK_SUBREDDIT:
     		if (resultCode == Activity.RESULT_OK) {
     	    	Matcher redditContextMatcher = REDDIT_PATH_PATTERN.matcher(intent.getData().getPath());
     			if (redditContextMatcher.matches()) {
     				new MyDownloadThreadsTask(redditContextMatcher.group(1)).execute();
+    				//add a new constructor to perform the search using preformatted URL
     			}
     		}
     		break;

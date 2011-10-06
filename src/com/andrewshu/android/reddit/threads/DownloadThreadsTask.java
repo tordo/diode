@@ -16,6 +16,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.andrewshu.android.reddit.common.CacheInfo;
 import com.andrewshu.android.reddit.common.Constants;
@@ -49,6 +50,11 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 	protected String mLastAfter = null;
 	protected String mLastBefore = null;
 	protected int mLastCount = 0;
+	
+	//the GET parameters to be passed when performing a search
+	//just get it to recognize the query first, get sort working later.
+	protected String mSearchString;
+	protected String mSortSearch;
 	
 	protected String mUserError = "Error retrieving subreddit info.";
 	// Progress bar
@@ -95,7 +101,13 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 			if (Constants.FRONTPAGE_STRING.equals(mSubreddit)) {
     			sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/").append(mSortByUrl)
     				.append(".json?").append(mSortByUrlExtra).append("&");
-    		} else {
+    		} 
+			//prepare a search query
+			else if(Constants.REDDIT_SEARCH_STRING.equals(mSubreddit)){
+				sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/search/").append(".json?")
+					.append(mSearchString);
+			}
+			else {
     			sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/r/")
         			.append(mSubreddit.toString().trim())
         			.append("/").append(mSortByUrl).append(".json?")
@@ -116,6 +128,11 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
     		}
     		
     		url = sb.toString();
+        	/*CharSequence text = (CharSequence)url;
+        	int duration = Toast.LENGTH_LONG;
+        	Toast toast = Toast.makeText(mContext, text, duration);
+        	toast.show();*/
+    		//https://pay.reddit.com/.json?&
     		if (Constants.LOGGING) Log.d(TAG, "url=" + url);
 
     		InputStream in = null;

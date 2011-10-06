@@ -145,6 +145,8 @@ public class Constants {
     
     public static final String FRONTPAGE_STRING = "reddit front page";
     
+    public static final String REDDIT_SEARCH_STRING = "search";
+    
     public static final String HAVE_MAIL_TICKER = "reddit mail";
     public static final String HAVE_MAIL_TITLE = "reddit is fun";
     public static final String HAVE_MAIL_TEXT = "You have reddit mail.";
