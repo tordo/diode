@@ -312,8 +312,9 @@ public class Constants {
     public static final String PREF_MAIL_NOTIFICATION_SERVICE_1DAY = "MAIL_NOTIFICATION_SERVICE_1DAY";
     
     // Reddit's base URL, without trailing slash
-    public static final String REDDIT_BASE_URL = "https://pay.reddit.com";
-    
+    //public static final String REDDIT_BASE_URL = "https://pay.reddit.com";
+    public static final String REDDIT_BASE_URL = "http://www.reddit.com"; //hack fix, it seems older versions of android
+    																	  //which this app supports, do not properly handle SSL certs
     // A short HTML file returned by reddit, so we can get the modhash
     public static final String MODHASH_URL = REDDIT_BASE_URL + "/r";
 }
