@@ -12,7 +12,10 @@
         	</intent-filter>
         	<meta-data android:name="android.app.searchable"
                    android:resource="@xml/searchable"/>
+        	<meta-data android:name="android.app.default_searchable"
+                   android:value="ThreadListActivity" />
     	</activity>
+    	
     
     
     <uses-library android:name="android.test.runner" />

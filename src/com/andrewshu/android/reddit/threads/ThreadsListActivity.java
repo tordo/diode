@@ -299,6 +299,7 @@ public final class ThreadsListActivity extends ListActivity {
         	//int duration = Toast.LENGTH_LONG;
         	//Toast toast = Toast.makeText(this, text, duration);
         	//toast.show();
+        	onSearchRequested();
         	return true;
         	
         }

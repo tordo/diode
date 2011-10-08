@@ -22,6 +22,7 @@
 
     <string name="app_name">reddit is fun</string>
     <string name="app_label">reddit is fun</string>
+    <string name="search_hint">search reddit.com</string>
     
     <string name="yes">Yes</string>
     <string name="no">No</string>
