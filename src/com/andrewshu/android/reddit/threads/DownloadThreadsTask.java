@@ -103,10 +103,10 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
     				.append(".json?").append(mSortByUrlExtra).append("&");
     		} 
 			//prepare a search query
-			else if(Constants.REDDIT_SEARCH_STRING.equals(mSubreddit)){
+			/*else if(Constants.REDDIT_SEARCH_STRING.equals(mSubreddit)){
 				sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/search/").append(".json?")
 					.append(mSearchString);
-			}
+			}*/
 			else {
     			sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/r/")
         			.append(mSubreddit.toString().trim())

@@ -295,11 +295,11 @@ public final class ThreadsListActivity extends ListActivity {
         else if(keyCode == KeyEvent.KEYCODE_SEARCH){
         	//start activity
         	//Context context = getApplicationContext();
-        	CharSequence text = "Search Button Pressed";
-        	int duration = Toast.LENGTH_LONG;
-        	Toast toast = Toast.makeText(this, text, duration);
-        	toast.show();
-        	return false;
+        	//sCharSequence text = "Search Button Pressed";
+        	//int duration = Toast.LENGTH_LONG;
+        	//Toast toast = Toast.makeText(this, text, duration);
+        	//toast.show();
+        	return true;
         	
         }
         else {
