@@ -1,6 +1,6 @@
 package com.andrewshu.android.reddit.search;
 
-import java.net.URI;
+
 
 import com.andrewshu.android.reddit.R;
 import com.andrewshu.android.reddit.common.Constants;
@@ -42,8 +42,8 @@ public class RedditSearchActivity extends Activity {
 	{
 		Intent intent = new Intent();
 		StringBuilder sb = new StringBuilder();
-		sb.append(Constants.REDDIT_BASE_URL + "/r/");
-		sb.append(searchText.getText().toString());
+		sb.append("/search/");
+		sb.append(searchText.getText());
 		intent.setData(Uri.parse(sb.toString()));
 		setResult(RESULT_OK, intent);
 		finish();

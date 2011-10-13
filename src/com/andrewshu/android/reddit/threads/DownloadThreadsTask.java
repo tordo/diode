@@ -53,8 +53,8 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 	
 	//the GET parameters to be passed when performing a search
 	//just get it to recognize the query first, get sort working later.
-	protected String mSearchString;
-	protected String mSortSearch;
+	protected String mSearchQuery;
+	protected String mSortSearch; //not implemented yet
 	
 	protected String mUserError = "Error retrieving subreddit info.";
 	// Progress bar
@@ -64,6 +64,13 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 	protected ArrayList<ThingInfo> mThingInfos = new ArrayList<ThingInfo>();
 	protected String mModhash = null;
 	
+	public DownloadThreadsTask(Context context, HttpClient client, ObjectMapper om,
+			String sortByUrl, String sortByUrlExtra,
+			String subreddit, String query) { 
+		this(context, client, om, sortByUrl, sortByUrlExtra, subreddit, null, null, Constants.DEFAULT_THREAD_DOWNLOAD_LIMIT);
+		mSearchQuery = query;
+	}
+
 	public DownloadThreadsTask(Context context, HttpClient client, ObjectMapper om,
 			String sortByUrl, String sortByUrlExtra,
 			String subreddit) {

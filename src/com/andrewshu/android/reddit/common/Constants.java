@@ -52,6 +52,10 @@ public class Constants {
 	public static final String REDDIT_PATH_PATTERN_STRING = "(?:/r/([^/]+))?/?$";
 	public static final String USER_PATH_PATTERN_STRING = "/user/([^/]+)/?$";
 	
+	//I realize this is probably not the best way to handle this, but it's a start
+	//have SearchActivity return a string that contains 2 tokens, "search" and the query string
+	public static final String REDDIT_SEARCH_PATTERN_STRING = "[a-zA-z0-9]+";
+	
 	public static final String COMMENT_KIND = "t1";
 	public static final String THREAD_KIND = "t3";
 	public static final String MESSAGE_KIND = "t4";
@@ -66,6 +70,7 @@ public class Constants {
     // startActivityForResult request codes
     public static final int ACTIVITY_PICK_SUBREDDIT = 0;
     public static final int ACTIVITY_SUBMIT_LINK = 1;
+    public static final int ACTIVITY_SEARCH_REDDIT = 2;
     
     // notifications
     public static final int NOTIFICATION_HAVE_MAIL = 0;

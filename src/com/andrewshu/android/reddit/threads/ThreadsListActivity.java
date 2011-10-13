@@ -103,6 +103,7 @@ public final class ThreadsListActivity extends ListActivity {
 
 	private static final String TAG = "ThreadsListActivity";
 	private final Pattern REDDIT_PATH_PATTERN = Pattern.compile(Constants.REDDIT_PATH_PATTERN_STRING);
+	private final Pattern REDDIT_SEARCH_PATTERN = Pattern.compile(Constants.REDDIT_SEARCH_PATTERN_STRING);
 	
 	private final ObjectMapper mObjectMapper = Common.getObjectMapper();
 	// BitmapManager helps with filling in thumbnails
@@ -259,14 +260,23 @@ public final class ThreadsListActivity extends ListActivity {
     		if (resultCode == Activity.RESULT_OK) {
     	    	Matcher redditContextMatcher = REDDIT_PATH_PATTERN.matcher(intent.getData().getPath());
     			if (redditContextMatcher.matches()) {
+    				//String foo = redditContextMatcher.group(1);
     				new MyDownloadThreadsTask(redditContextMatcher.group(1)).execute();
     				//add a new constructor to perform the search using preformatted URL
     			}
     		}
     		break;
-    	case 4:
+    	case Constants.ACTIVITY_SEARCH_REDDIT:
     		if(resultCode==Activity.RESULT_OK){
-    			Toast.makeText(this, intent.getDataString(), Toast.LENGTH_LONG).show();
+    			//Toast.makeText(this, intent.getDataString(), Toast.LENGTH_LONG).show();
+    			//on a search, the activity returns a path like "search/*query*" 
+    			//(unlike with subreddits, the activity  
+    			Matcher redditContextMatcher = REDDIT_SEARCH_PATTERN.matcher(intent.getData().getPath());
+				if (redditContextMatcher.matches()) {
+					String foo = redditContextMatcher.group(1);
+					String bar = redditContextMatcher.group(2);
+					new MyDownloadThreadsTask(redditContextMatcher.group(1), redditContextMatcher.group(2)).execute();
+				}
     		}
     		break;
     	default:
@@ -298,17 +308,17 @@ public final class ThreadsListActivity extends ListActivity {
             return true;
         }
         //if the search button is pressed
-        /*else if(keyCode == KeyEvent.KEYCODE_SEARCH){
+        else if(keyCode == KeyEvent.KEYCODE_SEARCH){
         	//start activity
         	//Context context = getApplicationContext();
         	//sCharSequence text = "Search Button Pressed";
         	//int duration = Toast.LENGTH_LONG;
         	//Toast toast = Toast.makeText(this, text, duration);
         	//toast.show();
-        	startActivityForResult(new Intent(this, RedditSearchActivity.class), 4);
+        	startActivityForResult(new Intent(this, RedditSearchActivity.class), Constants.ACTIVITY_SEARCH_REDDIT);
         	return true;
         	
-        }*/
+        }
         else {
             return super.onKeyDown(keyCode, event);
         }
@@ -698,6 +708,15 @@ public final class ThreadsListActivity extends ListActivity {
 					ThreadsListActivity.this.mSortByUrl,
 					ThreadsListActivity.this.mSortByUrlExtra,
 					subreddit);
+		}
+    	
+    	public MyDownloadThreadsTask(String subreddit, String query) {
+			super(getApplicationContext(),
+					ThreadsListActivity.this.mClient,
+					ThreadsListActivity.this.mObjectMapper,
+					ThreadsListActivity.this.mSortByUrl,
+					ThreadsListActivity.this.mSortByUrlExtra,
+					subreddit, query);
 		}
     	
     	public MyDownloadThreadsTask(String subreddit,
