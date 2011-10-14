@@ -139,6 +139,7 @@ public final class ThreadsListActivity extends ListActivity {
     private String mSortByUrlExtra = "";
     private String mJumpToThreadId = null;
     // End navigation variables
+    private String mSearchQuery = null;
     
     // Menu
     private boolean mCanChord = false;
@@ -736,6 +737,7 @@ public final class ThreadsListActivity extends ListActivity {
     	protected void saveState() {
 			mSettings.setModhash(mModhash);
 			ThreadsListActivity.this.mSubreddit = mSubreddit;
+			ThreadsListActivity.this.mSearchQuery = mSearchQuery;
 			ThreadsListActivity.this.mLastAfter = mLastAfter;
 			ThreadsListActivity.this.mLastBefore = mLastBefore;
 			ThreadsListActivity.this.mLastCount = mLastCount;
@@ -767,6 +769,8 @@ public final class ThreadsListActivity extends ListActivity {
     		
 	    	if (Constants.FRONTPAGE_STRING.equals(mSubreddit))
 	    		setTitle("reddit.com: what's new online!");
+	    	else if(Constants.REDDIT_SEARCH_STRING.equals(mSubreddit))
+	    		setTitle("Search: " + mSearchQuery);
 	    	else
 	    		setTitle("/r/" + mSubreddit.trim());
     	}
