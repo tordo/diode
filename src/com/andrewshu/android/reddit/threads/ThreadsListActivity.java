@@ -143,6 +143,9 @@ public final class ThreadsListActivity extends ListActivity {
     // Menu
     private boolean mCanChord = false;
     
+    //search query, so it can be displayed in the progress bar
+   // private String mSearchQuery;
+    
     
     /**
      * Called when the activity starts up. Do activity initialization
@@ -260,17 +263,17 @@ public final class ThreadsListActivity extends ListActivity {
     		if (resultCode == Activity.RESULT_OK) {
     	    	Matcher redditContextMatcher = REDDIT_PATH_PATTERN.matcher(intent.getData().getPath());
     			if (redditContextMatcher.matches()) {
-    				//String foo = redditContextMatcher.group(1);
     				new MyDownloadThreadsTask(redditContextMatcher.group(1)).execute();
-    				//add a new constructor to perform the search using preformatted URL
     			}
     		}
     		break;
     	case Constants.ACTIVITY_SEARCH_REDDIT:
     		if(resultCode==Activity.RESULT_OK){
     			//Toast.makeText(this, intent.getDataString(), Toast.LENGTH_LONG).show();
-    			//on a search, the activity returns a path like "search/*query*" 
-    			//(unlike with subreddits, the activity  
+    			//on a search, the activity returns a path like "/search/*query*" 
+    			//(unlike with subreddits, the activity needs to return 2 pieces of information)
+    			//this could be changed to just return the query, then use a bool flag passed
+    			//to the constructor to check whether we're searching
     			Matcher redditContextMatcher = REDDIT_SEARCH_PATTERN.matcher(intent.getData().getPath());
 				redditContextMatcher.find();
 				String search = redditContextMatcher.group();

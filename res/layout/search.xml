@@ -5,7 +5,7 @@
   android:layout_width="fill_parent"
   android:layout_height="fill_parent">
     <LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/linearLayout1">
-        <EditText android:layout_height="wrap_content" android:layout_weight="1" android:layout_width="wrap_content" android:id="@+id/searchText" android:text="@string/search_hint">
+        <EditText android:layout_height="wrap_content" android:layout_weight="1" android:layout_width="wrap_content" android:id="@+id/searchText">
             <requestFocus></requestFocus>
         </EditText>
         <Button android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/searchButton" android:text="@string/search_button"></Button>
