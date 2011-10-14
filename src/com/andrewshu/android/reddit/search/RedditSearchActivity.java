@@ -3,7 +3,7 @@ package com.andrewshu.android.reddit.search;
 
 
 import com.andrewshu.android.reddit.R;
-import com.andrewshu.android.reddit.common.Constants;
+//import com.andrewshu.android.reddit.common.Constants;
 
 import android.app.Activity;
 import android.content.Intent;

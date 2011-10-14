@@ -54,7 +54,7 @@ public class Constants {
 	
 	//I realize this is probably not the best way to handle this, but it's a start
 	//have SearchActivity return a string that contains 2 tokens, "search" and the query string
-	public static final String REDDIT_SEARCH_PATTERN_STRING = "[a-zA-z0-9]+";
+	public static final String REDDIT_SEARCH_PATTERN_STRING = "[^/]+"; //^[a-zA-z0-9]+$
 	
 	public static final String COMMENT_KIND = "t1";
 	public static final String THREAD_KIND = "t3";

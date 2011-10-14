@@ -272,11 +272,11 @@ public final class ThreadsListActivity extends ListActivity {
     			//on a search, the activity returns a path like "search/*query*" 
     			//(unlike with subreddits, the activity  
     			Matcher redditContextMatcher = REDDIT_SEARCH_PATTERN.matcher(intent.getData().getPath());
-				if (redditContextMatcher.matches()) {
-					String foo = redditContextMatcher.group(1);
-					String bar = redditContextMatcher.group(2);
-					new MyDownloadThreadsTask(redditContextMatcher.group(1), redditContextMatcher.group(2)).execute();
-				}
+				redditContextMatcher.find();
+				String search = redditContextMatcher.group();
+				redditContextMatcher.find();
+				String query = redditContextMatcher.group();
+				new MyDownloadThreadsTask(search, query).execute();
     		}
     		break;
     	default:
