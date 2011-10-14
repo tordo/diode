@@ -3,6 +3,7 @@ package com.andrewshu.android.reddit.threads;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 
 import org.apache.http.Header;
@@ -16,7 +17,6 @@ import org.codehaus.jackson.map.ObjectMapper;
 import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.andrewshu.android.reddit.common.CacheInfo;
 import com.andrewshu.android.reddit.common.Constants;
@@ -112,7 +112,7 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 			//prepare a search query
 			else if(Constants.REDDIT_SEARCH_STRING.equals(mSubreddit)){
 				sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/search/").append(".json?q=")
-					.append(mSearchQuery);
+					.append(URLEncoder.encode(mSearchQuery, "utf8"));
 			}
 			else {
     			sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/r/")
