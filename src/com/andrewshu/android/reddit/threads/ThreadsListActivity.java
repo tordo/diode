@@ -180,6 +180,7 @@ public final class ThreadsListActivity extends ListActivity {
 	        mSortByUrl = savedInstanceState.getString(Constants.ThreadsSort.SORT_BY_KEY);
 		    mJumpToThreadId = savedInstanceState.getString(Constants.JUMP_TO_THREAD_ID_KEY);
 		    mVoteTargetThingInfo = savedInstanceState.getParcelable(Constants.VOTE_TARGET_THING_INFO_KEY);
+		    mSearchQuery = savedInstanceState.getString(Constants.QUERY_KEY);
 		    
 		    // try to restore mThreadsList using getLastNonConfigurationInstance()
 		    // (separate function to avoid a compiler warning casting ArrayList<ThingInfo>
@@ -198,6 +199,8 @@ public final class ThreadsListActivity extends ListActivity {
 		    	resetUI(new ThreadsListAdapter(this, mThreadsList));
 		    	if (Constants.FRONTPAGE_STRING.equals(mSubreddit))
 		    		setTitle("reddit.com: what's new online!");
+		    	else if(Constants.REDDIT_SEARCH_STRING.equals(mSubreddit))
+		    		setTitle("Search: " + mSearchQuery);
 		    	else
 		    		setTitle("/r/" + mSubreddit.trim());
 		    }
@@ -1487,6 +1490,7 @@ public final class ThreadsListActivity extends ListActivity {
     protected void onSaveInstanceState(Bundle state) {
     	super.onSaveInstanceState(state);
     	state.putString(Constants.SUBREDDIT_KEY, mSubreddit);
+    	state.putString(Constants.QUERY_KEY, mSearchQuery);
     	state.putString(Constants.ThreadsSort.SORT_BY_KEY, mSortByUrl);
     	state.putString(Constants.JUMP_TO_THREAD_ID_KEY, mJumpToThreadId);
     	state.putString(Constants.AFTER_KEY, mAfter);
