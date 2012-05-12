@@ -19,6 +19,7 @@ import android.os.AsyncTask;
 import android.util.Log;
 
 import com.andrewshu.android.reddit.common.CacheInfo;
+import com.andrewshu.android.reddit.common.Common;
 import com.andrewshu.android.reddit.common.Constants;
 import com.andrewshu.android.reddit.common.ProgressInputStream;
 import com.andrewshu.android.reddit.common.util.StringUtils;
@@ -30,7 +31,7 @@ import com.andrewshu.android.reddit.things.ThingListing;
 /**
  * Given a subreddit name string, starts the threadlist-download-thread going.
  * 
- * @param subreddit The name of a subreddit ("reddit.com", "gaming", etc.)
+ * @param subreddit The name of a subreddit ("android", "gaming", etc.)
  *        If the number of elements in subreddit is >= 2, treat 2nd element as "after" 
  */
 public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean> implements PropertyChangeListener {
@@ -261,6 +262,7 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 				// Only add entries that are threads. kind="t3"
 				if (Constants.THREAD_KIND.equals(tiContainer.getKind())) {
 					ThingInfo ti = tiContainer.getData();
+					ti.setClicked(Common.isClicked(mContext, ti.getUrl()));
 					mThingInfos.add(ti);
 				}
 			}

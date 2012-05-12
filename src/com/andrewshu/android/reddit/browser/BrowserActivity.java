@@ -1,5 +1,7 @@
 package com.andrewshu.android.reddit.browser;
 
+import java.lang.reflect.Method;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
@@ -36,7 +38,23 @@ public class BrowserActivity extends Activity {
     // Common settings are stored here
     private final RedditSettings mSettings = new RedditSettings();
     
-	
+    // WebSettings available on Android 2.1 (API level 7)
+    private static Method mWebSettings_setDomStorageEnabled;
+    private static Method mWebSettings_setLoadWithOverviewMode;
+    
+    static {
+        initCompatibility();
+    };
+
+    private static void initCompatibility() {
+        try {
+        	mWebSettings_setDomStorageEnabled = WebSettings.class.getMethod("setDomStorageEnabled", new Class[] { Boolean.TYPE } );
+        } catch (NoSuchMethodException nsme) {}
+        try {
+        	mWebSettings_setLoadWithOverviewMode = WebSettings.class.getMethod("setLoadWithOverviewMode", new Class[] { Boolean.TYPE } );
+        } catch (NoSuchMethodException nsme) {}
+    }
+    
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -54,6 +72,8 @@ public class BrowserActivity extends Activity {
 		settings.setPluginsEnabled(true);
 		settings.setJavaScriptEnabled(true);
 		settings.setUseWideViewPort(true);
+		trySetDomStorageEnabled(settings);
+		trySetLoadWithOverviewMode(settings);
 		
     	// HACK: set background color directly for android 2.0
         if (Util.isLightTheme(mSettings.getTheme()))
@@ -61,7 +81,6 @@ public class BrowserActivity extends Activity {
 
 		// use transparent background while loading
 		webview.setBackgroundColor(0);
-		webview.setInitialScale(50);
 		webview.setWebViewClient(new WebViewClient() {
 		    @Override
 		    public boolean shouldOverrideUrlLoading(WebView view, String url) {
@@ -111,6 +130,29 @@ public class BrowserActivity extends Activity {
 			if (Constants.LOGGING) Log.d(TAG, "Loading url " + mUri.toString());
 			webview.loadUrl(mUri.toString());
 		}
+	}
+	
+	private void trySetDomStorageEnabled(WebSettings settings) {
+		if (mWebSettings_setDomStorageEnabled != null) {
+			try {
+				mWebSettings_setDomStorageEnabled.invoke(settings, true);
+			} catch (Exception ex) {
+				Log.e(TAG, "trySetDomStorageEnabled", ex);
+			}
+		}
+	}
+	
+	private void trySetLoadWithOverviewMode(WebSettings settings) {
+		if (mWebSettings_setLoadWithOverviewMode != null) {
+			try {
+				mWebSettings_setLoadWithOverviewMode.invoke(settings, true);
+				return;
+			} catch (Exception ex) {
+				Log.e(TAG, "trySetLoadWithOverviewMode", ex);
+			}
+		}
+		// if that method didn't work, do this instead for old devices
+		webview.setInitialScale(50);
 	}
 	
 	@Override
@@ -181,19 +223,17 @@ public class BrowserActivity extends Activity {
     
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-//        if (!mCanChord) {
-//            // The user has already fired a shortcut with this hold down of the
-//            // menu key.
-//            return false;
-//        }
-        
         switch (item.getItemId()) {
         
         case R.id.open_browser_menu_id:
     		if (mUri == null)
     			break;
-    		Common.launchBrowser(this, mUri.toString(), null, false, true, true);
+    		Common.launchBrowser(this, mUri.toString(), null, false, true, true, false);
     		break;
+        
+        case R.id.close_browser_menu_id:
+        	finish();
+        	break;
         
         case R.id.view_comments_menu_id:
         	if (mThreadUrl == null)
@@ -203,7 +243,11 @@ public class BrowserActivity extends Activity {
 			intent.putExtra(Constants.EXTRA_NUM_COMMENTS, Constants.DEFAULT_COMMENT_DOWNLOAD_LIMIT);
 			startActivity(intent);
         	break;
-        
+        	
+    	case android.R.id.home:
+    		Common.goHome(this);
+    		break;
+        	
         default:
     		throw new IllegalArgumentException("Unexpected action value "+item.getItemId());
     	}

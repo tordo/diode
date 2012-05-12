@@ -48,6 +48,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.ContextThemeWrapper;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -69,6 +70,7 @@ import com.andrewshu.android.reddit.captcha.CaptchaDownloadTask;
 import com.andrewshu.android.reddit.comments.CommentsListActivity;
 import com.andrewshu.android.reddit.common.Common;
 import com.andrewshu.android.reddit.common.Constants;
+import com.andrewshu.android.reddit.common.RedditIsFunHttpClientFactory;
 import com.andrewshu.android.reddit.common.util.StringUtils;
 import com.andrewshu.android.reddit.common.util.Util;
 import com.andrewshu.android.reddit.login.LoginDialog;
@@ -92,7 +94,7 @@ public class SubmitLinkActivity extends TabActivity {
 	TabHost mTabHost;
 	
 	private RedditSettings mSettings = new RedditSettings();
-	private final HttpClient mClient = Common.getGzipHttpClient();
+	private final HttpClient mClient = RedditIsFunHttpClientFactory.getGzipHttpClient();
 
 	private String mSubmitUrl;
 	
@@ -174,8 +176,8 @@ public class SubmitLinkActivity extends TabActivity {
 	        	final EditText submitLinkReddit = (EditText) findViewById(R.id.submit_link_reddit);
 	        	final EditText submitTextReddit = (EditText) findViewById(R.id.submit_text_reddit);
 	        	submitLinkUrl.setText(url);
-	        	submitLinkReddit.setText("reddit.com");
-        		submitTextReddit.setText("reddit.com");
+	        	submitLinkReddit.setText("");
+        		submitTextReddit.setText("");
         		mSubmitUrl = Constants.REDDIT_BASE_URL + "/submit";
 	        }
         } else {
@@ -196,8 +198,8 @@ public class SubmitLinkActivity extends TabActivity {
         	if (m.matches()) {
         		String subreddit = m.group(1);
         		if (StringUtils.isEmpty(subreddit)) {
-            		submitLinkReddit.setText("reddit.com");
-            		submitTextReddit.setText("reddit.com");
+            		submitLinkReddit.setText("");
+            		submitTextReddit.setText("");
         		} else {
 		        	submitLinkReddit.setText(subreddit);
 		        	submitTextReddit.setText(subreddit);
@@ -262,7 +264,7 @@ public class SubmitLinkActivity extends TabActivity {
     	
     	@Override
     	protected void onPostExecute(Boolean success) {
-    		dismissDialog(Constants.DIALOG_LOGGING_IN);
+    		removeDialog(Constants.DIALOG_LOGGING_IN);
 			if (success) {
     			Toast.makeText(SubmitLinkActivity.this, "Logged in as "+mUsername, Toast.LENGTH_SHORT).show();
     			// Check mail
@@ -428,7 +430,7 @@ public class SubmitLinkActivity extends TabActivity {
     	
     	@Override
     	public void onPostExecute(ThingInfo newlyCreatedThread) {
-    		dismissDialog(Constants.DIALOG_SUBMITTING);
+    		removeDialog(Constants.DIALOG_SUBMITTING);
     		if (newlyCreatedThread == null) {
     			Common.showErrorToast(_mUserError, Toast.LENGTH_LONG, SubmitLinkActivity.this);
     		} else {
@@ -538,7 +540,7 @@ public class SubmitLinkActivity extends TabActivity {
 			dialog = new LoginDialog(this, mSettings, true) {
 				@Override
 				public void onLoginChosen(String user, String password) {
-					dismissDialog(Constants.DIALOG_LOGIN);
+					removeDialog(Constants.DIALOG_LOGIN);
     				new MyLoginTask(user, password).execute();
 				}
 			};
@@ -546,17 +548,17 @@ public class SubmitLinkActivity extends TabActivity {
 
        	// "Please wait"
     	case Constants.DIALOG_LOGGING_IN:
-    		pdialog = new ProgressDialog(this);
+    		pdialog = new ProgressDialog(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		pdialog.setMessage("Logging in...");
     		pdialog.setIndeterminate(true);
-    		pdialog.setCancelable(false);
+    		pdialog.setCancelable(true);
     		dialog = pdialog;
     		break;
 		case Constants.DIALOG_SUBMITTING:
-			pdialog = new ProgressDialog(this);
+			pdialog = new ProgressDialog(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		pdialog.setMessage("Submitting...");
     		pdialog.setIndeterminate(true);
-    		pdialog.setCancelable(false);
+    		pdialog.setCancelable(true);
     		dialog = pdialog;
     		break;
 		default:
@@ -650,6 +652,9 @@ public class SubmitLinkActivity extends TabActivity {
     	case R.id.update_captcha_menu_id:
     		new MyCaptchaCheckRequiredTask().execute();
     		break;
+    	case android.R.id.home:
+    		Common.goHome(this);
+    		break;
     	default:
     		throw new IllegalArgumentException("Unexpected action value "+item.getItemId());
     	}
@@ -675,8 +680,8 @@ public class SubmitLinkActivity extends TabActivity {
 	    				linkSubreddit.setText(newSubreddit);
 		    			textSubreddit.setText(newSubreddit);
     				} else {
-	    				linkSubreddit.setText("reddit.com");
-		    			textSubreddit.setText("reddit.com");
+	    				linkSubreddit.setText("");
+		    			textSubreddit.setText("");
     				}
 	    		}
     		}
@@ -696,7 +701,7 @@ public class SubmitLinkActivity extends TabActivity {
         };
         for (int dialog : myDialogs) {
 	        try {
-	        	dismissDialog(dialog);
+	        	removeDialog(dialog);
 		    } catch (IllegalArgumentException e) {
 		    	// Ignore.
 		    }

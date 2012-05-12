@@ -37,8 +37,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
@@ -48,6 +46,7 @@ import android.text.style.TextAppearanceSpan;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
+import android.view.ContextThemeWrapper;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -63,6 +62,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.ProgressBar;
@@ -74,6 +74,7 @@ import com.andrewshu.android.reddit.comments.CommentsListActivity;
 import com.andrewshu.android.reddit.common.CacheInfo;
 import com.andrewshu.android.reddit.common.Common;
 import com.andrewshu.android.reddit.common.Constants;
+import com.andrewshu.android.reddit.common.RedditIsFunHttpClientFactory;
 import com.andrewshu.android.reddit.common.tasks.HideTask;
 import com.andrewshu.android.reddit.common.tasks.SaveTask;
 import com.andrewshu.android.reddit.common.tasks.VoteTask;
@@ -83,7 +84,6 @@ import com.andrewshu.android.reddit.login.LoginDialog;
 import com.andrewshu.android.reddit.login.LoginTask;
 import com.andrewshu.android.reddit.mail.InboxActivity;
 import com.andrewshu.android.reddit.mail.PeekEnvelopeTask;
-import com.andrewshu.android.reddit.profile.ProfileActivity;
 import com.andrewshu.android.reddit.reddits.PickSubredditActivity;
 import com.andrewshu.android.reddit.reddits.SubscribeTask;
 import com.andrewshu.android.reddit.reddits.UnsubscribeTask;
@@ -92,6 +92,8 @@ import com.andrewshu.android.reddit.settings.RedditPreferencesPage;
 import com.andrewshu.android.reddit.settings.RedditSettings;
 import com.andrewshu.android.reddit.submit.SubmitLinkActivity;
 import com.andrewshu.android.reddit.things.ThingInfo;
+import com.andrewshu.android.reddit.threads.ShowThumbnailsTask.ThumbnailLoadAction;
+import com.andrewshu.android.reddit.user.ProfileActivity;
 
 /**
  * Main Activity class representing a Subreddit, i.e., a ThreadsList.
@@ -106,24 +108,25 @@ public final class ThreadsListActivity extends ListActivity {
 	private final Pattern REDDIT_SEARCH_PATTERN = Pattern.compile(Constants.REDDIT_SEARCH_PATTERN_STRING);
 	
 	private final ObjectMapper mObjectMapper = Common.getObjectMapper();
-	// BitmapManager helps with filling in thumbnails
-	private final BitmapManager drawableManager = new BitmapManager();
 
     /** Custom list adapter that fits our threads data into the list. */
     private ThreadsListAdapter mThreadsAdapter = null;
     private ArrayList<ThingInfo> mThreadsList = null;
     private static final Object THREAD_ADAPTER_LOCK = new Object();
 
-    private final HttpClient mClient = Common.getGzipHttpClient();
+    private final HttpClient mClient = RedditIsFunHttpClientFactory.getGzipHttpClient();
 	
    
     private final RedditSettings mSettings = new RedditSettings();
     
     // UI State
-    private ThingInfo mVoteTargetThingInfo = null;
+    private ThingInfo mVoteTargetThing = null;
     private DownloadThreadsTask mCurrentDownloadThreadsTask = null;
     private final Object mCurrentDownloadThreadsTaskLock = new Object();
     private View mNextPreviousView = null;
+    
+    private ShowThumbnailsTask mCurrentShowThumbnailsTask = null;
+    private final Object mCurrentShowThumbnailsTaskLock = new Object();
     
     // Navigation that can be cached
     private String mSubreddit = Constants.FRONTPAGE_STRING;
@@ -165,6 +168,9 @@ public final class ThreadsListActivity extends ListActivity {
         setTheme(mSettings.getTheme());
         requestWindowFeature(Window.FEATURE_PROGRESS);
         requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
+        
+        setContentView(R.layout.threads_list_content);
+        registerForContextMenu(getListView());
     	
 		if (savedInstanceState != null) {
         	if (Constants.LOGGING) Log.d(TAG, "using savedInstanceState");
@@ -179,8 +185,8 @@ public final class ThreadsListActivity extends ListActivity {
 	        mLastCount = savedInstanceState.getInt(Constants.THREAD_LAST_COUNT_KEY);
 	        mSortByUrl = savedInstanceState.getString(Constants.ThreadsSort.SORT_BY_KEY);
 		    mJumpToThreadId = savedInstanceState.getString(Constants.JUMP_TO_THREAD_ID_KEY);
-		    mVoteTargetThingInfo = savedInstanceState.getParcelable(Constants.VOTE_TARGET_THING_INFO_KEY);
 		    mSearchQuery = savedInstanceState.getString(Constants.QUERY_KEY);
+		    mVoteTargetThing = savedInstanceState.getParcelable(Constants.VOTE_TARGET_THING_INFO_KEY);
 		    
 		    // try to restore mThreadsList using getLastNonConfigurationInstance()
 		    // (separate function to avoid a compiler warning casting ArrayList<ThingInfo>
@@ -223,18 +229,40 @@ public final class ThreadsListActivity extends ListActivity {
     @Override
     protected void onResume() {
     	super.onResume();
-		CookieSyncManager.getInstance().startSync();
-    	int previousTheme = mSettings.getTheme();
+    	
+        // SOPA blackout: Jan 18, 2012 from 8am-8pm EST (1300-0100 UTC)
+    	long timeMillis = System.currentTimeMillis();
+        if (timeMillis >= 1326891600000L && timeMillis <= 1326934800000L) {
+        	Toast.makeText(this, "Let's Protest SOPA", Toast.LENGTH_LONG).show();
+        	Common.launchBrowser(this, "http://www.reddit.com", null, false, true, false, false);
+        	finish();
+        	return;
+        }
+        
+		int previousTheme = mSettings.getTheme();
+
     	mSettings.loadRedditPreferences(this, mClient);
-    	setRequestedOrientation(mSettings.getRotation());
+
     	if (mSettings.getTheme() != previousTheme) {
-    		resetUI(mThreadsAdapter);
+    		relaunchActivity();
     	}
-    	updateNextPreviousButtons();
-    	if (mThreadsAdapter != null) {
-    		jumpToThread();
+    	else {
+	    	CookieSyncManager.getInstance().startSync();
+	    	setRequestedOrientation(mSettings.getRotation());
+	    	
+	    	updateNextPreviousButtons();
+	    	
+	    	if (mThreadsAdapter != null)
+	    		jumpToThread();
+	    	
+	    	if (mSettings.isLoggedIn())
+	    		new PeekEnvelopeTask(this, mClient, mSettings.getMailNotificationStyle()).execute();
     	}
-    	new PeekEnvelopeTask(this, mClient, mSettings.getMailNotificationStyle()).execute();
+    }
+    
+    private void relaunchActivity() {
+    	finish();
+    	startActivity(getIntent());
     }
     
     @Override
@@ -297,9 +325,9 @@ public final class ThreadsListActivity extends ListActivity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         //Handle the back button
-        if(mSettings.isConfirmQuit() && keyCode == KeyEvent.KEYCODE_BACK && isTaskRoot()) {
+        if(mSettings.isConfirmQuitOrLogout() && keyCode == KeyEvent.KEYCODE_BACK && isTaskRoot()) {
             //Ask the user if they want to quit
-            new AlertDialog.Builder(this)
+            new AlertDialog.Builder(new ContextThemeWrapper(this, mSettings.getDialogTheme()))
             .setIcon(android.R.drawable.ic_dialog_alert)
             .setTitle(R.string.quit)
             .setMessage(R.string.really_quit)
@@ -380,18 +408,23 @@ public final class ThreadsListActivity extends ListActivity {
             ThingInfo item = this.getItem(position);
             
             // Set the values of the Views for the ThreadsListItem
-            fillThreadsListItemView(view, item, ThreadsListActivity.this, mSettings, drawableManager,
-            		true, thumbnailOnClickListenerFactory);
+            fillThreadsListItemView(
+            		position, view, item, ThreadsListActivity.this, mClient, mSettings, mThumbnailOnClickListenerFactory
+    		);
             
             return view;
         }
     }
     
-    public static void fillThreadsListItemView(View view, ThingInfo item,
-    		Activity activity, RedditSettings settings,
-    		BitmapManager bitmapManager,
-    		boolean defaultUseGoArrow,
-    		ThumbnailOnClickListenerFactory thumbnailOnClickListenerFactory) {
+    public static void fillThreadsListItemView(
+    		int position,
+    		View view,
+    		ThingInfo item,
+    		ListActivity activity,
+    		HttpClient client,
+    		RedditSettings settings,
+    		ThumbnailOnClickListenerFactory thumbnailOnClickListenerFactory
+	) {
     	
     	Resources res = activity.getResources();
     	
@@ -402,8 +435,9 @@ public final class ThreadsListActivity extends ListActivity {
 //        TextView submissionTimeView = (TextView) view.findViewById(R.id.submissionTime);
         ImageView voteUpView = (ImageView) view.findViewById(R.id.vote_up_image);
         ImageView voteDownView = (ImageView) view.findViewById(R.id.vote_down_image);
-        ImageView thumbnailView = (ImageView) view.findViewById(R.id.thumbnail);
-        View dividerView = view.findViewById(R.id.divider);
+        View thumbnailContainer = view.findViewById(R.id.thumbnail_view);
+        FrameLayout thumbnailFrame = (FrameLayout) view.findViewById(R.id.thumbnail_frame);
+        ImageView thumbnailImageView = (ImageView) view.findViewById(R.id.thumbnail);
         ProgressBar indeterminateProgressBar = (ProgressBar) view.findViewById(R.id.indeterminate_progress);
         
         // Set the title and domain using a SpannableStringBuilder
@@ -427,7 +461,6 @@ public final class ThreadsListActivity extends ListActivity {
         		0, domainLen+2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
         if (Util.isLightTheme(settings.getTheme())) {
-        	// FIXME: This doesn't work persistently, since "clicked" is not delivered to reddit.com
             if (item.isClicked()) {
             	ForegroundColorSpan fcs = new ForegroundColorSpan(res.getColor(R.color.purple));
             	titleSS.setSpan(fcs, 0, titleLen, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -438,6 +471,10 @@ public final class ThreadsListActivity extends ListActivity {
             domainSS.setSpan(new ForegroundColorSpan(res.getColor(R.color.gray_50)),
             		0, domainLen+2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         } else {
+            if (item.isClicked()) {
+            	ForegroundColorSpan fcs = new ForegroundColorSpan(res.getColor(R.color.gray_50));
+            	titleSS.setSpan(fcs, 0, titleLen, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
         	domainSS.setSpan(new ForegroundColorSpan(res.getColor(R.color.gray_75)),
             		0, domainLen+2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
@@ -476,63 +513,43 @@ public final class ThreadsListActivity extends ListActivity {
         }
         
         // Thumbnails open links
-        if (thumbnailView != null) {
-        	
-        	//check for wifi connection and wifi thumbnail setting
-        	boolean thumbOkay = true;
-        	if (settings.isLoadThumbnailsOnlyWifi())
-        	{
-        		thumbOkay = false;
-        		ConnectivityManager connMan = (ConnectivityManager) activity.getSystemService(Context.CONNECTIVITY_SERVICE);
-        		NetworkInfo netInfo = connMan.getActiveNetworkInfo();
-        		if (netInfo != null && netInfo.getType() == ConnectivityManager.TYPE_WIFI && netInfo.isConnected()) {
-        			thumbOkay = true;
-        		}
-        	}
-        	if (settings.isLoadThumbnails() && thumbOkay) {
-        		dividerView.setVisibility(View.VISIBLE);
-        		thumbnailView.setVisibility(View.VISIBLE);
-        		indeterminateProgressBar.setVisibility(View.GONE);
+        if (thumbnailContainer != null) {
+        	if (Common.shouldLoadThumbnails(activity, settings)) {
+        		thumbnailContainer.setVisibility(View.VISIBLE);
         		
             	if (item.getUrl() != null) {
-            		OnClickListener thumbnailOnClickListener = thumbnailOnClickListenerFactory.getThumbnailOnClickListener(
-        					item.getId(), item.getUrl(), Util.createThreadUri(item).toString(), activity);
+            		OnClickListener thumbnailOnClickListener = thumbnailOnClickListenerFactory.getThumbnailOnClickListener(item, activity);
             		if (thumbnailOnClickListener != null) {
-		            	thumbnailView.setOnClickListener(thumbnailOnClickListener);
-		            	indeterminateProgressBar.setOnClickListener(thumbnailOnClickListener);
+		            	thumbnailFrame.setOnClickListener(thumbnailOnClickListener);
             		}
             	}
             	
-            	// Fill in the thumbnail using a Thread. Note that thumbnail URL can be absolute path.
-            	if (!StringUtils.isEmpty(item.getThumbnail())) {
-            		bitmapManager.fetchBitmapOnThread(Util.absolutePathToURL(item.getThumbnail()),
-            				thumbnailView, indeterminateProgressBar, activity);
-            	} else {
-            		if (defaultUseGoArrow) {
-	            		indeterminateProgressBar.setVisibility(View.GONE);
-	            		thumbnailView.setVisibility(View.VISIBLE);
-	            		thumbnailView.setImageResource(R.drawable.go_arrow);
-            		} else {
-            			// if no thumbnail image, hide thumbnail icon
-            			dividerView.setVisibility(View.GONE);
-            			thumbnailView.setVisibility(View.GONE);
-            			indeterminateProgressBar.setVisibility(View.GONE);
+            	// Show thumbnail based on ThingInfo
+            	if ("default".equals(item.getThumbnail()) || "self".equals(item.getThumbnail()) || StringUtils.isEmpty(item.getThumbnail())) {
+        			indeterminateProgressBar.setVisibility(View.GONE);
+            		thumbnailImageView.setVisibility(View.VISIBLE);
+            		thumbnailImageView.setImageResource(R.drawable.go_arrow);
+            	}
+            	else {
+            		indeterminateProgressBar.setVisibility(View.GONE);
+            		thumbnailImageView.setVisibility(View.VISIBLE);
+            		if (item.getThumbnailBitmap() != null) {
+	            		thumbnailImageView.setImageBitmap(item.getThumbnailBitmap());
+            		}
+            		else {
+            			thumbnailImageView.setImageBitmap(null);
+            			new ShowThumbnailsTask(activity, client, R.drawable.go_arrow).execute(new ThumbnailLoadAction(item, thumbnailImageView, position));
             		}
             	}
             	
             	// Set thumbnail background based on current theme
-            	if (Util.isLightTheme(settings.getTheme())) {
-            		thumbnailView.setBackgroundResource(R.drawable.thumbnail_background_light);
-            		indeterminateProgressBar.setBackgroundResource(R.drawable.thumbnail_background_light);
-            	} else {
-            		thumbnailView.setBackgroundResource(R.drawable.thumbnail_background_dark);
-            		indeterminateProgressBar.setBackgroundResource(R.drawable.thumbnail_background_dark);
-            	}
+            	if (Util.isLightTheme(settings.getTheme()))
+            		thumbnailFrame.setBackgroundResource(R.drawable.thumbnail_background_light);
+            	else
+            		thumbnailFrame.setBackgroundResource(R.drawable.thumbnail_background_dark);
         	} else {
         		// if thumbnails disabled, hide thumbnail icon
-        		dividerView.setVisibility(View.GONE);
-        		thumbnailView.setVisibility(View.GONE);
-        		indeterminateProgressBar.setVisibility(View.GONE);
+        		thumbnailContainer.setVisibility(View.GONE);
         	}
         }
     }
@@ -635,7 +652,7 @@ public final class ThreadsListActivity extends ListActivity {
         ThingInfo item = mThreadsAdapter.getItem(position);
         
     	// Mark the thread as selected
-    	mVoteTargetThingInfo = item;
+    	mVoteTargetThing = item;
     	mJumpToThreadId = item.getId();
     	
     	showDialog(Constants.DIALOG_THREAD_CLICK);
@@ -646,18 +663,22 @@ public final class ThreadsListActivity extends ListActivity {
      * @param threadsAdapter A ThreadsListAdapter to use. Pass in null if you want a new empty one created.
      */
     void resetUI(ThreadsListAdapter threadsAdapter) {
-    	setTheme(mSettings.getTheme());
-    	setContentView(R.layout.threads_list_content);
-        registerForContextMenu(getListView());
-        
-        if (mSettings.isAlwaysShowNextPrevious()) {
-        	// Set mNextPreviousView to null; we can use findViewById(R.id.next_previous_layout).
-        	mNextPreviousView = null;
+    	findViewById(R.id.loading_light).setVisibility(View.GONE);
+    	findViewById(R.id.loading_dark).setVisibility(View.GONE);
+
+    	if (mSettings.isAlwaysShowNextPrevious()) {
+    		if (mNextPreviousView != null) {
+    			getListView().removeFooterView(mNextPreviousView);
+    			mNextPreviousView = null;
+    		}
         } else {
-            // If we are not using the persistent navbar, then show as ListView footer instead
-	        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-	        mNextPreviousView = inflater.inflate(R.layout.next_previous_list_item, null);
-	        getListView().addFooterView(mNextPreviousView);
+        	findViewById(R.id.next_previous_layout).setVisibility(View.GONE);
+        	if (getListView().getFooterViewsCount() == 0) {
+	            // If we are not using the persistent navbar, then show as ListView footer instead
+		        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		        mNextPreviousView = inflater.inflate(R.layout.next_previous_list_item, null);
+		        getListView().addFooterView(mNextPreviousView);
+        	}
         }
 
     	synchronized (THREAD_ADAPTER_LOCK) {
@@ -678,20 +699,22 @@ public final class ThreadsListActivity extends ListActivity {
     
     private void enableLoadingScreen() {
     	if (Util.isLightTheme(mSettings.getTheme())) {
-    		setContentView(R.layout.loading_light);
+        	findViewById(R.id.loading_light).setVisibility(View.VISIBLE);
+        	findViewById(R.id.loading_dark).setVisibility(View.GONE);
     	} else {
-    		setContentView(R.layout.loading_dark);
+        	findViewById(R.id.loading_light).setVisibility(View.GONE);
+        	findViewById(R.id.loading_dark).setVisibility(View.VISIBLE);
     	}
     	synchronized (THREAD_ADAPTER_LOCK) {
 	    	if (mThreadsAdapter != null)
 	    		mThreadsAdapter.mIsLoading = true;
     	}
-    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, 0);
+    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_START);
     }
     
     private void disableLoadingScreen() {
     	resetUI(mThreadsAdapter);
-    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, 10000);
+    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_END);
     }
     
     private void updateNextPreviousButtons() {
@@ -703,7 +726,7 @@ public final class ThreadsListActivity extends ListActivity {
     /**
      * Given a subreddit name string, starts the threadlist-download-thread going.
      * 
-     * @param subreddit The name of a subreddit ("reddit.com", "gaming", etc.)
+     * @param subreddit The name of a subreddit ("android", "gaming", etc.)
      *        If the number of elements in subreddit is >= 2, treat 2nd element as "after" 
      */
     private class MyDownloadThreadsTask extends DownloadThreadsTask {
@@ -786,17 +809,18 @@ public final class ThreadsListActivity extends ListActivity {
 
     		disableLoadingScreen();
 
-    		if (mContentLength == -1) {
+    		if (mContentLength == -1)
     			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_INDETERMINATE_OFF);
-    		}
+    		else
+    			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_END);
 
     		if (success) {
     			synchronized (THREAD_ADAPTER_LOCK) {
-		    		for (ThingInfo ti : mThingInfos)
-		        		mThreadsList.add(ti);
-		    		drawableManager.clearCache();  // clear thumbnails
+    				mThreadsList.addAll(mThingInfos);
 		    		mThreadsAdapter.notifyDataSetChanged();
     			}
+    			
+    			showThumbnails(mThingInfos);
     			
     			updateNextPreviousButtons();
 
@@ -810,17 +834,32 @@ public final class ThreadsListActivity extends ListActivity {
     	
     	@Override
     	public void onProgressUpdate(Long... progress) {
-    		// 0-9999 is ok, 10000 means it's finished
     		if (mContentLength == -1) {
-//    			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, progress[0].intValue() * 9999 / (int) mContentLength);
+    			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_INDETERMINATE_ON);
     		}
     		else {
-    			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, progress[0].intValue() * 9999 / (int) mContentLength);
+    			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, progress[0].intValue() * (Window.PROGRESS_END-1) / (int) mContentLength);
     		}
     	}
     	
     	public void propertyChange(PropertyChangeEvent event) {
     		publishProgress((Long) event.getNewValue());
+    	}
+    }
+    
+    private void showThumbnails(List<ThingInfo> thingInfos) {
+    	if (Common.shouldLoadThumbnails(this, mSettings)) {
+	    	int size = thingInfos.size();
+	    	ThumbnailLoadAction[] thumbnailLoadActions = new ThumbnailLoadAction[size];
+	    	for (int i = 0; i < size; i++) {
+	    		thumbnailLoadActions[i] = new ThumbnailLoadAction(thingInfos.get(i), null, i);
+	    	}
+	    	synchronized (mCurrentShowThumbnailsTaskLock) {
+	    		if (mCurrentShowThumbnailsTask != null)
+	    			mCurrentShowThumbnailsTask.cancel(true);
+	    		mCurrentShowThumbnailsTask = new ShowThumbnailsTask(this, mClient, R.drawable.go_arrow);
+	    	}
+	    	mCurrentShowThumbnailsTask.execute(thumbnailLoadActions);
     	}
     }
     
@@ -836,7 +875,7 @@ public final class ThreadsListActivity extends ListActivity {
     	
     	@Override
     	protected void onPostExecute(Boolean success) {
-    		dismissDialog(Constants.DIALOG_LOGGING_IN);
+    		removeDialog(Constants.DIALOG_LOGGING_IN);
     		if (success) {
     			Toast.makeText(ThreadsListActivity.this, "Logged in as "+mUsername, Toast.LENGTH_SHORT).show();
     			// Check mail
@@ -977,7 +1016,7 @@ public final class ThreadsListActivity extends ListActivity {
     	info = (AdapterView.AdapterContextMenuInfo) menuInfo;
     	ThingInfo _item = mThreadsAdapter.getItem(info.position);
     	
-    	mVoteTargetThingInfo = _item;
+    	mVoteTargetThing = _item;
     	
     	menu.add(0, Constants.VIEW_SUBREDDIT_CONTEXT_ITEM, 0, R.string.view_subreddit);
     	menu.add(0, Constants.SHARE_CONTEXT_ITEM, 0, R.string.share);
@@ -1021,7 +1060,8 @@ public final class ThreadsListActivity extends ListActivity {
 			return true;
 			
 		case Constants.OPEN_IN_BROWSER_CONTEXT_ITEM:
-			Common.launchBrowser(this, _item.getUrl(), Util.createThreadUri(_item).toString(), false, true, true);
+			setLinkClicked(_item);
+			Common.launchBrowser(this, _item.getUrl(), Util.createThreadUri(_item).toString(), false, true, true, mSettings.isSaveHistory());
 			return true;
 			
 		case Constants.SAVE_CONTEXT_ITEM:
@@ -1063,7 +1103,8 @@ public final class ThreadsListActivity extends ListActivity {
     	
         // Login/Logout
     	if (mSettings.isLoggedIn()) {
-    		
+    		menu.findItem(R.id.login_menu_id).setVisible(false);
+
     		if(!mSubreddit.equals(Constants.FRONTPAGE_STRING)){
     			ArrayList<String> mSubredditsList = CacheInfo.getCachedSubredditList(getApplicationContext());	
     			
@@ -1071,27 +1112,31 @@ public final class ThreadsListActivity extends ListActivity {
 	    			menu.findItem(R.id.unsubscribe_menu_id).setVisible(true);
 	    			menu.findItem(R.id.subscribe_menu_id).setVisible(false);
 	    		}
-	    		else{
+	    		else {
 	    			menu.findItem(R.id.subscribe_menu_id).setVisible(true);
 	    			menu.findItem(R.id.unsubscribe_menu_id).setVisible(false);
 	    		}
     		}
     		
-	        menu.findItem(R.id.login_logout_menu_id).setTitle(
-	        		String.format(getResources().getString(R.string.logout), mSettings.getUsername()));
 	        menu.findItem(R.id.inbox_menu_id).setVisible(true);
 	        menu.findItem(R.id.user_profile_menu_id).setVisible(true);
 	        menu.findItem(R.id.user_profile_menu_id).setTitle(
-	        		String.format(getResources().getString(R.string.user_profile), mSettings.getUsername()));
-	        
-	        
-	        
-    	} else {
-            menu.findItem(R.id.login_logout_menu_id).setTitle(getResources().getString(R.string.login));
-            menu.findItem(R.id.inbox_menu_id).setVisible(false);
-            menu.findItem(R.id.user_profile_menu_id).setVisible(false);
+	        		String.format(getResources().getString(R.string.user_profile), mSettings.getUsername())
+    		);
+	        menu.findItem(R.id.logout_menu_id).setVisible(true);
+	        menu.findItem(R.id.logout_menu_id).setTitle(
+	        		String.format(getResources().getString(R.string.logout), mSettings.getUsername())
+    		);
+    	}
+    	else {
+			menu.findItem(R.id.login_menu_id).setVisible(true);
+
 			menu.findItem(R.id.unsubscribe_menu_id).setVisible(false);
 			menu.findItem(R.id.subscribe_menu_id).setVisible(false);
+
+            menu.findItem(R.id.inbox_menu_id).setVisible(false);
+            menu.findItem(R.id.user_profile_menu_id).setVisible(false);
+            menu.findItem(R.id.logout_menu_id).setVisible(false);
     	}
     	
     	// Theme: Light/Dark
@@ -1129,15 +1174,30 @@ public final class ThreadsListActivity extends ListActivity {
     		Intent pickSubredditIntent = new Intent(getApplicationContext(), PickSubredditActivity.class);
     		startActivityForResult(pickSubredditIntent, Constants.ACTIVITY_PICK_SUBREDDIT);
     		break;
-    	case R.id.login_logout_menu_id:
-        	if (mSettings.isLoggedIn()) {
-        		Common.doLogout(mSettings, mClient, getApplicationContext());
-        		Toast.makeText(this, "You have been logged out.", Toast.LENGTH_SHORT).show();
-        		new MyDownloadThreadsTask(mSubreddit).execute();
-        	} else {
-        		showDialog(Constants.DIALOG_LOGIN);
-        	}
+    	case R.id.login_menu_id:
+    		showDialog(Constants.DIALOG_LOGIN);
     		break;
+    	case R.id.logout_menu_id:
+			if (mSettings.isConfirmQuitOrLogout()) {
+				// Ask the user if they want to logout
+				new AlertDialog.Builder(new ContextThemeWrapper(this, mSettings.getDialogTheme()))
+						.setIcon(android.R.drawable.ic_dialog_alert)
+						.setTitle(R.string.confirm_logout_title)
+						.setMessage(R.string.confirm_logout)
+						.setPositiveButton(R.string.yes,
+								new DialogInterface.OnClickListener() {
+									public void onClick(DialogInterface dialog,
+											int which) {
+										ThreadsListActivity.this.logout();
+									}
+								}
+						)
+						.setNegativeButton(R.string.no, null)
+						.show();
+			} else {
+				logout();
+			}
+			break;
     	case R.id.refresh_menu_id:
     		CacheInfo.invalidateCachedSubreddit(getApplicationContext());
     		new MyDownloadThreadsTask(mSubreddit).execute();
@@ -1156,11 +1216,11 @@ public final class ThreadsListActivity extends ListActivity {
     			url = Constants.REDDIT_BASE_URL;
     		else
         		url = new StringBuilder(Constants.REDDIT_BASE_URL + "/r/").append(mSubreddit).toString();
-    		Common.launchBrowser(this, url, null, false, true, true);
+    		Common.launchBrowser(this, url, null, false, true, true, false);
     		break;
         case R.id.light_dark_menu_id:
     		mSettings.setTheme(Util.getInvertedTheme(mSettings.getTheme()));
-    		resetUI(mThreadsAdapter);
+    		relaunchActivity();
     		break;
         case R.id.inbox_menu_id:
         	Intent inboxIntent = new Intent(getApplicationContext(), InboxActivity.class);
@@ -1181,60 +1241,68 @@ public final class ThreadsListActivity extends ListActivity {
     	case R.id.unsubscribe_menu_id:
     		CacheInfo.invalidateCachedSubreddit(getApplicationContext());
     		new UnsubscribeTask(mSubreddit, getApplicationContext(), mSettings).execute();
-    		break;    		
+    		break;
+    	case android.R.id.home:
+    		Common.goHome(this);
+    		break;
+    		
     	default:
     		throw new IllegalArgumentException("Unexpected action value "+item.getItemId());
     	}
     	
         return true;
     }
+    
+	private void logout() {
+		Common.doLogout(mSettings, mClient, getApplicationContext());
+		Toast.makeText(this, "You have been logged out.", Toast.LENGTH_SHORT)
+				.show();
+		new MyDownloadThreadsTask(mSubreddit).execute();
+	}
 
     @Override
     protected Dialog onCreateDialog(int id) {
     	Dialog dialog;
     	ProgressDialog pdialog;
     	AlertDialog.Builder builder;
-    	LayoutInflater inflater;
     	
     	switch (id) {
     	case Constants.DIALOG_LOGIN:
     		dialog = new LoginDialog(this, mSettings, false) {
 				public void onLoginChosen(String user, String password) {
-					dismissDialog(Constants.DIALOG_LOGIN);
+					removeDialog(Constants.DIALOG_LOGIN);
 		        	new MyLoginTask(user, password).execute(); 
 				}
 			};
     		break;
     		
     	case Constants.DIALOG_THREAD_CLICK:
-    		inflater = (LayoutInflater)this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-    		builder = new AlertDialog.Builder(this);
-    		dialog = builder.setView(inflater.inflate(R.layout.thread_click_dialog, null)).create();
+    		dialog = new ThreadClickDialog(this, mSettings);
     		break;
     		
     	case Constants.DIALOG_SORT_BY:
-    		builder = new AlertDialog.Builder(this);
+    		builder = new AlertDialog.Builder(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		builder.setTitle("Sort by:");
     		builder.setSingleChoiceItems(Constants.ThreadsSort.SORT_BY_CHOICES,
     				getSelectedSortBy(), sortByOnClickListener);
     		dialog = builder.create();
     		break;
     	case Constants.DIALOG_SORT_BY_NEW:
-    		builder = new AlertDialog.Builder(this);
+    		builder = new AlertDialog.Builder(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		builder.setTitle("what's new");
     		builder.setSingleChoiceItems(Constants.ThreadsSort.SORT_BY_NEW_CHOICES,
     				getSelectedSortByNew(), sortByNewOnClickListener);
     		dialog = builder.create();
     		break;
     	case Constants.DIALOG_SORT_BY_CONTROVERSIAL:
-    		builder = new AlertDialog.Builder(this);
+    		builder = new AlertDialog.Builder(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		builder.setTitle("most controversial");
     		builder.setSingleChoiceItems(Constants.ThreadsSort.SORT_BY_CONTROVERSIAL_CHOICES,
     				getSelectedSortByControversial(), sortByControversialOnClickListener);
     		dialog = builder.create();
     		break;
     	case Constants.DIALOG_SORT_BY_TOP:
-    		builder = new AlertDialog.Builder(this);
+    		builder = new AlertDialog.Builder(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		builder.setTitle("top scoring");
     		builder.setSingleChoiceItems(Constants.ThreadsSort.SORT_BY_TOP_CHOICES,
     				getSelectedSortByTop(), sortByTopOnClickListener);
@@ -1243,10 +1311,10 @@ public final class ThreadsListActivity extends ListActivity {
 
     	// "Please wait"
     	case Constants.DIALOG_LOGGING_IN:
-    		pdialog = new ProgressDialog(this);
+    		pdialog = new ProgressDialog(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		pdialog.setMessage("Logging in...");
     		pdialog.setIndeterminate(true);
-    		pdialog.setCancelable(false);
+    		pdialog.setCancelable(true);
     		dialog = pdialog;
     		break;
     	
@@ -1271,9 +1339,9 @@ public final class ThreadsListActivity extends ListActivity {
     		break;
     		
     	case Constants.DIALOG_THREAD_CLICK:
-    		if (mVoteTargetThingInfo == null)
+    		if (mVoteTargetThing == null)
     			break;
-    		fillThreadClickDialog(dialog, mVoteTargetThingInfo, mSettings, threadClickDialogOnClickListenerFactory);
+    		fillThreadClickDialog(dialog, mVoteTargetThing, mSettings, mThreadClickDialogOnClickListenerFactory);
     		break;
     		
     	case Constants.DIALOG_SORT_BY:
@@ -1296,44 +1364,36 @@ public final class ThreadsListActivity extends ListActivity {
     }
     
 	private int getSelectedSortBy() {
-		int selectedSortBy = -1;
 		for (int i = 0; i < Constants.ThreadsSort.SORT_BY_URL_CHOICES.length; i++) {
 			if (Constants.ThreadsSort.SORT_BY_URL_CHOICES[i].equals(mSortByUrl)) {
-				selectedSortBy = i;
-				break;
+				return i;
 			}
 		}
-		return selectedSortBy;
+		return -1;
 	}
 	private int getSelectedSortByNew() {
-		int selectedSortByNew = -1;
 		for (int i = 0; i < Constants.ThreadsSort.SORT_BY_NEW_URL_CHOICES.length; i++) {
 			if (Constants.ThreadsSort.SORT_BY_NEW_URL_CHOICES[i].equals(mSortByUrlExtra)) {
-				selectedSortByNew = i;
-				break;
+				return i;
 			}
 		}
-		return selectedSortByNew;
+		return -1;
 	}
 	private int getSelectedSortByControversial() {
-		int selectedSortByControversial = -1;
 		for (int i = 0; i < Constants.ThreadsSort.SORT_BY_CONTROVERSIAL_URL_CHOICES.length; i++) {
 			if (Constants.ThreadsSort.SORT_BY_CONTROVERSIAL_URL_CHOICES[i].equals(mSortByUrlExtra)) {
-				selectedSortByControversial = i;
-				break;
+				return i;
 			}
 		}
-		return selectedSortByControversial;
+		return -1;
 	}
 	private int getSelectedSortByTop() {
-		int selectedSortByTop = -1;
 		for (int i = 0; i < Constants.ThreadsSort.SORT_BY_TOP_URL_CHOICES.length; i++) {
 			if (Constants.ThreadsSort.SORT_BY_TOP_URL_CHOICES[i].equals(mSortByUrlExtra)) {
-				selectedSortByTop = i;
-				break;
+				return i;
 			}
 		}
-		return selectedSortByTop;
+		return -1;
 	}
 
 	private final OnClickListener downloadAfterOnClickListener = new OnClickListener() {
@@ -1390,101 +1450,101 @@ public final class ThreadsListActivity extends ListActivity {
 		}
 	};
 	
-	private final ThumbnailOnClickListenerFactory thumbnailOnClickListenerFactory
+	private final ThumbnailOnClickListenerFactory mThumbnailOnClickListenerFactory
 			= new ThumbnailOnClickListenerFactory() {
-		public OnClickListener getThumbnailOnClickListener(String jumpToId, String url, String threadUrl, Context context) {
-			final String fJumpToId = jumpToId;
-			final String fUrl = url;
-			final String fThreadUrl = threadUrl;
+		@Override
+		public OnClickListener getThumbnailOnClickListener(final ThingInfo threadThingInfo, final Activity activity) {
 			return new OnClickListener() {
 				public void onClick(View v) {
-					ThreadsListActivity.this.mJumpToThreadId = fJumpToId;
-					Common.launchBrowser(ThreadsListActivity.this, fUrl, fThreadUrl,
-							false, false, ThreadsListActivity.this.mSettings.isUseExternalBrowser());
+					mJumpToThreadId = threadThingInfo.getId();
+					setLinkClicked(threadThingInfo);
+					Common.launchBrowser(
+							activity,
+							threadThingInfo.getUrl(),
+							Util.createThreadUri(threadThingInfo).toString(),
+							false,
+							false,
+							mSettings.isUseExternalBrowser(),
+							mSettings.isSaveHistory()
+					);
 				}
 			};
 		}
 	};
 	
-	private final ThreadClickDialogOnClickListenerFactory threadClickDialogOnClickListenerFactory
+	private final ThreadClickDialogOnClickListenerFactory mThreadClickDialogOnClickListenerFactory
 			= new ThreadClickDialogOnClickListenerFactory() {
+		@Override
 		public OnClickListener getLoginOnClickListener() {
 			return new OnClickListener() {
 				public void onClick(View v) {
-					dismissDialog(Constants.DIALOG_THREAD_CLICK);
+					removeDialog(Constants.DIALOG_THREAD_CLICK);
 					showDialog(Constants.DIALOG_LOGIN);
 				}
 			};
 		}
-		public OnClickListener getLinkOnClickListener(ThingInfo thingInfo, boolean useExternalBrowser) {
-			final ThingInfo info = thingInfo;
-    		final boolean fUseExternalBrowser = useExternalBrowser;
+		@Override
+		public OnClickListener getLinkOnClickListener(final ThingInfo thingInfo, final boolean useExternalBrowser) {
     		return new OnClickListener() {
 				public void onClick(View v) {
-					dismissDialog(Constants.DIALOG_THREAD_CLICK);
-					// Launch Intent to goto the URL
-					Common.launchBrowser(ThreadsListActivity.this, info.getUrl(),
-							Util.createThreadUri(info).toString(),
-							false, false, fUseExternalBrowser);
+					removeDialog(Constants.DIALOG_THREAD_CLICK);
+					setLinkClicked(thingInfo);
+					Common.launchBrowser(ThreadsListActivity.this, thingInfo.getUrl(),
+							Util.createThreadUri(thingInfo).toString(),
+							false, false, useExternalBrowser, mSettings.isSaveHistory());
 				}
 			};
     	}
-		public OnClickListener getCommentsOnClickListener(ThingInfo thingInfo) {
-			final ThingInfo info = thingInfo;
+		@Override
+		public OnClickListener getCommentsOnClickListener(final ThingInfo thingInfo) {
 			return new OnClickListener() {
 				public void onClick(View v) {
-					dismissDialog(Constants.DIALOG_THREAD_CLICK);
-					// Launch an Intent for CommentsListActivity
+					removeDialog(Constants.DIALOG_THREAD_CLICK);
+
 					CacheInfo.invalidateCachedThread(ThreadsListActivity.this);
+					
+					// Launch an Intent for CommentsListActivity
 					Intent i = new Intent(ThreadsListActivity.this, CommentsListActivity.class);
-					i.setData(Util.createThreadUri(info));
-					i.putExtra(Constants.EXTRA_SUBREDDIT, info.getSubreddit());
-					i.putExtra(Constants.EXTRA_TITLE, info.getTitle());
-					i.putExtra(Constants.EXTRA_NUM_COMMENTS, Integer.valueOf(info.getNum_comments()));
+					i.setData(Util.createThreadUri(thingInfo));
+					i.putExtra(Constants.EXTRA_SUBREDDIT, thingInfo.getSubreddit());
+					i.putExtra(Constants.EXTRA_TITLE, thingInfo.getTitle());
+					i.putExtra(Constants.EXTRA_NUM_COMMENTS, Integer.valueOf(thingInfo.getNum_comments()));
 					startActivity(i);
 				}
 			};
 		}
-		public CompoundButton.OnCheckedChangeListener getVoteUpOnCheckedChangeListener(ThingInfo thingInfo) {
-			final ThingInfo info = thingInfo;
+		@Override
+		public CompoundButton.OnCheckedChangeListener getVoteUpOnCheckedChangeListener(final ThingInfo thingInfo) {
 			return new CompoundButton.OnCheckedChangeListener() {
 		    	public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-		    		dismissDialog(Constants.DIALOG_THREAD_CLICK);
+		    		removeDialog(Constants.DIALOG_THREAD_CLICK);
 			    	if (isChecked) {
-						new MyVoteTask(info, 1, info.getSubreddit()).execute();
+						new MyVoteTask(thingInfo, 1, thingInfo.getSubreddit()).execute();
 					} else {
-						new MyVoteTask(info, 0, info.getSubreddit()).execute();
+						new MyVoteTask(thingInfo, 0, thingInfo.getSubreddit()).execute();
 					}
 				}
 		    };
 		}
-	    public CompoundButton.OnCheckedChangeListener getVoteDownOnCheckedChangeListener(ThingInfo thingInfo) {
-	    	final ThingInfo info = thingInfo;
+		@Override
+	    public CompoundButton.OnCheckedChangeListener getVoteDownOnCheckedChangeListener(final ThingInfo thingInfo) {
 	    	return new CompoundButton.OnCheckedChangeListener() {
 		        public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-			    	dismissDialog(Constants.DIALOG_THREAD_CLICK);
+			    	removeDialog(Constants.DIALOG_THREAD_CLICK);
 					if (isChecked) {
-						new MyVoteTask(info, -1, info.getSubreddit()).execute();
+						new MyVoteTask(thingInfo, -1, thingInfo.getSubreddit()).execute();
 					} else {
-						new MyVoteTask(info, 0, info.getSubreddit()).execute();
+						new MyVoteTask(thingInfo, 0, thingInfo.getSubreddit()).execute();
 					}
 				}
 		    };
 	    }
 	};
 	
-	public interface ThumbnailOnClickListenerFactory {
-		public OnClickListener getThumbnailOnClickListener(String jumpToId, String url, String threadUrl, Context context);
+	private void setLinkClicked(ThingInfo threadThingInfo) {
+		threadThingInfo.setClicked(true);
+		mThreadsAdapter.notifyDataSetChanged();
 	}
-	
-	public interface ThreadClickDialogOnClickListenerFactory {
-		public OnClickListener getLoginOnClickListener();
-		public OnClickListener getLinkOnClickListener(ThingInfo thingInfo, boolean useExternalBrowser);
-		public OnClickListener getCommentsOnClickListener(ThingInfo thingInfo);
-		public CompoundButton.OnCheckedChangeListener getVoteUpOnCheckedChangeListener(ThingInfo thingInfo);
-		public CompoundButton.OnCheckedChangeListener getVoteDownOnCheckedChangeListener(ThingInfo thingInfo);
-	}
-
 	
 	@Override
     protected void onSaveInstanceState(Bundle state) {
@@ -1499,7 +1559,7 @@ public final class ThreadsListActivity extends ListActivity {
     	state.putString(Constants.LAST_AFTER_KEY, mLastAfter);
     	state.putString(Constants.LAST_BEFORE_KEY, mLastBefore);
     	state.putInt(Constants.THREAD_LAST_COUNT_KEY, mLastCount);
-    	state.putParcelable(Constants.VOTE_TARGET_THING_INFO_KEY, mVoteTargetThingInfo);
+    	state.putParcelable(Constants.VOTE_TARGET_THING_INFO_KEY, mVoteTargetThing);
     }
     
     /**
@@ -1521,7 +1581,7 @@ public final class ThreadsListActivity extends ListActivity {
         };
         for (int dialog : myDialogs) {
 	        try {
-	        	dismissDialog(dialog);
+	        	removeDialog(dialog);
 		    } catch (IllegalArgumentException e) {
 		    	// Ignore.
 		    }

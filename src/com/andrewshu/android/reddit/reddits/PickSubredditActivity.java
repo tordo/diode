@@ -43,8 +43,10 @@ import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.ContextThemeWrapper;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnKeyListener;
@@ -61,6 +63,7 @@ import com.andrewshu.android.reddit.R;
 import com.andrewshu.android.reddit.common.CacheInfo;
 import com.andrewshu.android.reddit.common.Common;
 import com.andrewshu.android.reddit.common.Constants;
+import com.andrewshu.android.reddit.common.RedditIsFunHttpClientFactory;
 import com.andrewshu.android.reddit.common.util.CollectionUtils;
 import com.andrewshu.android.reddit.common.util.Util;
 import com.andrewshu.android.reddit.settings.RedditSettings;
@@ -75,7 +78,7 @@ public final class PickSubredditActivity extends ListActivity {
     private final Pattern MY_SUBREDDITS_INNER = Pattern.compile("<a(.*?)/r/(.*?)>(.+?)</a>");
 
 	private RedditSettings mSettings = new RedditSettings();
-	private HttpClient mClient = Common.getGzipHttpClient();
+	private HttpClient mClient = RedditIsFunHttpClientFactory.getGzipHttpClient();
 	
 	private PickSubredditAdapter mSubredditsAdapter;
 	private ArrayList<String> mSubredditsList;
@@ -86,28 +89,32 @@ public final class PickSubredditActivity extends ListActivity {
     private final Object mCurrentTaskLock = new Object();
 	
     public static final String[] DEFAULT_SUBREDDITS = {
-    	"reddit.com",
     	"pics",
-    	"politics",
-    	"wtf",
     	"funny",
-    	"technology",
-    	"askreddit",
-    	"science",
-    	"programming",
+    	"politics",
     	"gaming",
+    	"askreddit",
     	"worldnews",
+    	"videos",
+    	"iama",
+    	"todayilearned",
+    	"wtf",
+    	"aww",
+    	"technology",
+    	"science",
+    	"music",
+    	"askscience",
+    	"movies",
+    	"bestof",
+    	"fffffffuuuuuuuuuuuu",
+    	"programming",
     	"comics",
     	"offbeat",
-    	"videos",
     	"environment",
-    	"iama",
     	"business",
     	"entertainment",
-    	"bestof",
     	"economics",
-    	"marijuana",
-    	"todayilearned",
+    	"trees",
     	"linux",
     	"android"
     };
@@ -132,7 +139,11 @@ public final class PickSubredditActivity extends ListActivity {
     	requestWindowFeature(Window.FEATURE_PROGRESS);
     	requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
     	
-    	resetUI(null);
+    	setTheme(mSettings.getTheme());
+    	setContentView(R.layout.pick_subreddit_view);
+        registerForContextMenu(getListView());
+
+        resetUI(null);
         
     	mSubredditsList = cacheSubredditsList(mSubredditsList);
     	
@@ -173,10 +184,9 @@ public final class PickSubredditActivity extends ListActivity {
     }
 
     void resetUI(PickSubredditAdapter adapter) {
-    	setTheme(mSettings.getTheme());
-    	setContentView(R.layout.pick_subreddit_view);
-        registerForContextMenu(getListView());
-
+    	findViewById(R.id.loading_light).setVisibility(View.GONE);
+    	findViewById(R.id.loading_dark).setVisibility(View.GONE);
+    	
     	synchronized (ADAPTER_LOCK) {
 	    	if (adapter == null) {
 	            // Reset the list to be empty.
@@ -233,20 +243,22 @@ public final class PickSubredditActivity extends ListActivity {
     
     private void enableLoadingScreen() {
     	if (Util.isLightTheme(mSettings.getTheme())) {
-    		setContentView(R.layout.loading_light);
+        	findViewById(R.id.loading_light).setVisibility(View.VISIBLE);
+        	findViewById(R.id.loading_dark).setVisibility(View.GONE);
     	} else {
-    		setContentView(R.layout.loading_dark);
+        	findViewById(R.id.loading_light).setVisibility(View.GONE);
+        	findViewById(R.id.loading_dark).setVisibility(View.VISIBLE);
     	}
     	synchronized (ADAPTER_LOCK) {
 	    	if (mSubredditsAdapter != null)
 	    		mSubredditsAdapter.mLoading = true;
     	}
-    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, 0);
+    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_START);
     }
     
     private void disableLoadingScreen() {
     	resetUI(mSubredditsAdapter);
-    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, 10000);
+    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_END);
     }
     
     class DownloadRedditsTask extends AsyncTask<Void, Void, ArrayList<String>> {
@@ -413,6 +425,7 @@ public final class PickSubredditActivity extends ListActivity {
         }
     }
     
+    @Override
     protected Dialog onCreateDialog(int id) {
     	Dialog dialog;
     	ProgressDialog pdialog;
@@ -420,16 +433,30 @@ public final class PickSubredditActivity extends ListActivity {
     	switch (id) {
 	    	// "Please wait"
 		case Constants.DIALOG_LOADING_REDDITS_LIST:
-			pdialog = new ProgressDialog(this);
+			pdialog = new ProgressDialog(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
 			pdialog.setMessage("Loading your reddits...");
 			pdialog.setIndeterminate(true);
-			pdialog.setCancelable(false);
+			pdialog.setCancelable(true);
 			dialog = pdialog;
 			break;
 		default:
 			throw new IllegalArgumentException("Unexpected dialog id "+id);
     	}
     	return dialog;
+    }
+    
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+    	switch (item.getItemId()) {
+
+    	case android.R.id.home:
+    		Common.goHome(this);
+    		break;
+
+    	default:
+    		throw new IllegalArgumentException("Unexpected action value "+item.getItemId());
+    	}
+    	return true;
     }
     
     @Override
@@ -440,7 +467,7 @@ public final class PickSubredditActivity extends ListActivity {
         };
         for (int dialog : myDialogs) {
 	        try {
-	        	dismissDialog(dialog);
+	        	removeDialog(dialog);
 		    } catch (IllegalArgumentException e) {
 		    	// Ignore.
 		    }

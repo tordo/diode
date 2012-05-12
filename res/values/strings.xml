@@ -23,18 +23,21 @@
     <string name="app_name">reddit is fun</string>
     <string name="app_label">reddit is fun</string>
     <string name="search_hint">search reddit.com</string>
+    <string name="user_agent">reddit is fun (Android) %s</string>
     
     <string name="yes">Yes</string>
     <string name="no">No</string>
     <string name="quit">Quit</string>
     <string name="really_quit">Really quit?</string>
+    <string name="confirm_logout_title">Logout</string>
+    <string name="confirm_logout">Are you sure you want to logout?</string>
     
     <string name="noThreads">No threads here</string>
     <string name="noComments">No comments here</string>
     <string name="noMessages">Your inbox is empty.</string>
     <string name="noSubreddits">No subreddits</string>
     
-    <string name="loading_splash_text">Loading...</string>
+    <string name="loading_splash_text">Loading…</string>
     
     <string name="pick_subreddit_label">Subreddit name:</string>
     <string name="pick_subreddit_button">Go</string>
@@ -67,7 +70,7 @@
 	<string name="compose_send_button">send</string>
 	<string name="compose_cancel_button">cancel</string>
 	<string name="compose_captcha_text">are you human? (sorry)</string>
-	<string name="compose_captcha_loading">loading CAPTCHA...</string>
+	<string name="compose_captcha_loading">loading CAPTCHA…</string>
 	
 	<string name="comment_hidden">[+]</string>
 	<string name="more_comments">load more comments</string>
@@ -87,7 +90,7 @@
 	<string name="submit_text_label">text (optional)</string>
 	<string name="submit_reddit_label">reddit</string>
 	<string name="submit_captcha_label">are you human? (sorry)</string>
-	<string name="submit_captcha_loading">loading CAPTCHA...</string>
+	<string name="submit_captcha_loading">loading CAPTCHA…</string>
 	<string name="submit_button">submit</string>
 	
 	<string name="select_link_title">Select action</string>
@@ -135,6 +138,7 @@
 	<string name="user_profile">%s\'s profile</string>
 	<string name="view_comments">View comments</string>
 	<string name="view_subreddit">View subreddit</string>
+	<string name="close_browser">Close browser</string>
 	
 	
 	<!-- === Preferences === -->
@@ -147,7 +151,9 @@
 	
 	<string name="pref_use_external_browser">Use external browser</string>
 	
-	<string name="pref_confirm_quit">Quit confirmation</string>
+	<string name="pref_confirm_quit">Quit/logout confirmation</string>
+ 	
+	<string name="pref_save_history">Save browsing history</string>
  	
 	<!-- Settings label -->
 	<string name="pref_theme">Theme</string>
@@ -228,7 +234,14 @@
    	
    	<string name="pref_load_thumbnails">Show thumbnails</string>
    	
-<string name="pref_load_thumbnails_only_wifi">Only on WiFi</string>
-<string name="pref_thumbnail_category">Thumbnail Settings</string>
-<string name="search_button">Search</string>
+	<string name="search_button">Search</string>
+    <string name="pref_load_thumbnails_only_wifi">Only on WiFi</string>
+    <string name="pref_thumbnail_category">Thumbnail Settings</string>
+    
+    
+    <!-- === I18N Content Descriptions === -->
+    <string name="vote_up_arrow_content_description">upvote arrow</string>
+    <string name="vote_down_arrow_content_description">downvote arrow</string>
+    <string name="thumbnail_content_description">thumbnail (click to view link)</string>
+    
 </resources>

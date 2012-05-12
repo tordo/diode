@@ -21,10 +21,8 @@
 <!-- Note that this is used for both the OP and comment replies in commentslist -->
 
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:id="@+id/layout_root"
               android:layout_width="fill_parent"
               android:layout_height="fill_parent"
-              android:minWidth="280dip"
               android:padding="30dip"
               >
     
@@ -68,7 +66,6 @@
    		android:layout_marginLeft="120dip"
    		android:layout_marginBottom="5dip"
    		android:textSize="14sp"
-   		android:textColor="@color/white"
    		android:maxLines="3"
    		/>
    	
@@ -80,7 +77,6 @@
    		android:singleLine="true"
    		android:ellipsize="marquee"
    		android:textSize="9sp"
-   		android:textColor="@color/white"
    		/>
    	
    	
@@ -94,7 +90,6 @@
         android:singleLine="true"
         android:ellipsize="marquee"
         android:textSize="10sp"
-        android:textColor="@color/white"
     />
     
    	

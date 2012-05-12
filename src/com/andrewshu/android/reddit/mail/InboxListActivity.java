@@ -50,7 +50,6 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Typeface;
-import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.text.Html;
@@ -63,9 +62,9 @@ import android.text.style.URLSpan;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
+import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -76,19 +75,16 @@ import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.andrewshu.android.reddit.R;
-import com.andrewshu.android.reddit.captcha.CaptchaCheckRequiredTask;
-import com.andrewshu.android.reddit.captcha.CaptchaDownloadTask;
-import com.andrewshu.android.reddit.captcha.CaptchaException;
 import com.andrewshu.android.reddit.comments.CommentsListActivity;
 import com.andrewshu.android.reddit.common.Common;
 import com.andrewshu.android.reddit.common.Constants;
 import com.andrewshu.android.reddit.common.ProgressInputStream;
+import com.andrewshu.android.reddit.common.RedditIsFunHttpClientFactory;
 import com.andrewshu.android.reddit.common.util.Assert;
 import com.andrewshu.android.reddit.common.util.StringUtils;
 import com.andrewshu.android.reddit.common.util.Util;
@@ -120,7 +116,7 @@ public final class InboxListActivity extends ListActivity
     private static final Object MESSAGE_ADAPTER_LOCK = new Object();
     
     
-    private final HttpClient mClient = Common.getGzipHttpClient();
+    private final HttpClient mClient = RedditIsFunHttpClientFactory.getGzipHttpClient();
     
     
     // Common settings are stored here
@@ -144,9 +140,6 @@ public final class InboxListActivity extends ListActivity
     private String mLastAfter = null;
     private String mLastBefore = null;
     private int mLastCount = 0;
-    
-    private volatile String mCaptchaIden = null;
-	private volatile String mCaptchaUrl = null;
     
     // ProgressDialogs with percentage bars
 //    private AutoResetProgressDialog mLoadingCommentsProgress;
@@ -173,9 +166,7 @@ public final class InboxListActivity extends ListActivity
         requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
         
         setContentView(R.layout.inbox_list_content);
-        // The above layout contains a list id "android:list"
-        // which ListActivity adopts as its list -- we can
-        // access it with getListView().
+        registerForContextMenu(getListView());
         
 		if (mSettings.isLoggedIn()) {
 			if (savedInstanceState != null) {
@@ -259,7 +250,10 @@ public final class InboxListActivity extends ListActivity
 	private void restoreLastNonConfigurationInstance() {
     	mMessagesList = (ArrayList<ThingInfo>) getLastNonConfigurationInstance();
     }
-
+    
+    public void refresh() {
+    	new DownloadMessagesTask(mWhichInbox).execute(Constants.DEFAULT_COMMENT_DOWNLOAD_LIMIT);
+    }
     
     
     /**
@@ -413,18 +407,22 @@ public final class InboxListActivity extends ListActivity
      * @param messagesAdapter A MessagesListAdapter to use. Pass in null if you want a new empty one created.
      */
     void resetUI(MessagesListAdapter messagesAdapter) {
-    	setTheme(mSettings.getTheme());
-    	setContentView(R.layout.inbox_list_content);
-        registerForContextMenu(getListView());
+    	findViewById(R.id.loading_light).setVisibility(View.GONE);
+    	findViewById(R.id.loading_dark).setVisibility(View.GONE);
 
-        if (mSettings.isAlwaysShowNextPrevious()) {
-        	// Set mNextPreviousView to null; we can use findViewById(R.id.next_previous_layout).
-        	mNextPreviousView = null;
-        } else {
-            // If we are not using the persistent navbar, then show as ListView footer instead
-	        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-	        mNextPreviousView = inflater.inflate(R.layout.next_previous_list_item, null);
-	        getListView().addFooterView(mNextPreviousView);
+    	if (mSettings.isAlwaysShowNextPrevious()) {
+    		if (mNextPreviousView != null) {
+    			getListView().removeFooterView(mNextPreviousView);
+    			mNextPreviousView = null;
+    		}
+    	} else {
+    		findViewById(R.id.next_previous_layout).setVisibility(View.GONE);
+    		if (getListView().getFooterViewsCount() == 0) {
+	            // If we are not using the persistent navbar, then show as ListView footer instead
+		        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		        mNextPreviousView = inflater.inflate(R.layout.next_previous_list_item, null);
+		        getListView().addFooterView(mNextPreviousView);
+    		}
         }
 
         synchronized (MESSAGE_ADAPTER_LOCK) {
@@ -446,20 +444,22 @@ public final class InboxListActivity extends ListActivity
     
     private void enableLoadingScreen() {
     	if (Util.isLightTheme(mSettings.getTheme())) {
-    		setContentView(R.layout.loading_light);
+        	findViewById(R.id.loading_light).setVisibility(View.VISIBLE);
+        	findViewById(R.id.loading_dark).setVisibility(View.GONE);
     	} else {
-    		setContentView(R.layout.loading_dark);
+        	findViewById(R.id.loading_light).setVisibility(View.GONE);
+        	findViewById(R.id.loading_dark).setVisibility(View.VISIBLE);
     	}
     	synchronized (MESSAGE_ADAPTER_LOCK) {
 	    	if (mMessagesAdapter != null)
 	    		mMessagesAdapter.mIsLoading = true;
     	}
-    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, 0);
+    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_START);
     }
     
     private void disableLoadingScreen() {
     	resetUI(mMessagesAdapter);
-    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, 10000);
+    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_END);
     }
 
     private void updateNextPreviousButtons() {
@@ -563,8 +563,8 @@ public final class InboxListActivity extends ListActivity
                 parseInboxJSON(pin);
                 
                 // XXX: HACK: http://code.reddit.com/ticket/709
-                // Marking messages as read is currently broken (even with mark=
-                // For now, just send an extra request to the regular non-JSON i
+                // Marking messages as read is currently broken (even with mark=true)
+                // For now, just send an extra request to the regular non-JSON inbox
                 mClient.execute(new HttpGet(Constants.REDDIT_BASE_URL + "/message/" + mWhichInbox));
 
             	mLastCount = mCount;
@@ -666,6 +666,8 @@ public final class InboxListActivity extends ListActivity
     		
     		if (_mContentLength == -1)
     			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_INDETERMINATE_OFF);
+    		else
+    			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_END);
     		
 			disableLoadingScreen();
 			Common.cancelMailNotification(InboxListActivity.this.getApplicationContext());
@@ -673,9 +675,8 @@ public final class InboxListActivity extends ListActivity
 		
     	@Override
     	public void onProgressUpdate(Long... progress) {
-    		// 0-9999 is ok, 10000 means it's finished
     		if (_mContentLength != -1)
-    			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, progress[0].intValue() * 9999 / (int) _mContentLength);
+    			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, progress[0].intValue() * (Window.PROGRESS_END-1) / (int) _mContentLength);
     	}
     	
     	public void propertyChange(PropertyChangeEvent event) {
@@ -696,7 +697,7 @@ public final class InboxListActivity extends ListActivity
     	
     	@Override
     	protected void onPostExecute(Boolean success) {
-    		dismissDialog(Constants.DIALOG_LOGGING_IN);
+    		removeDialog(Constants.DIALOG_LOGGING_IN);
     		if (success) {
     			Toast.makeText(InboxListActivity.this, "Logged in as "+mUsername, Toast.LENGTH_SHORT).show();
 	    		// Refresh the threads list
@@ -897,7 +898,7 @@ public final class InboxListActivity extends ListActivity
     	
     	@Override
     	public void onPostExecute(Boolean success) {
-    		dismissDialog(Constants.DIALOG_REPLYING);
+    		removeDialog(Constants.DIALOG_REPLYING);
     		if (success) {
     			Toast.makeText(InboxListActivity.this, "Reply sent.", Toast.LENGTH_SHORT).show();
     			// TODO: add the reply beneath the original, OR redirect to sent messages page
@@ -907,204 +908,6 @@ public final class InboxListActivity extends ListActivity
     	}
     }
     
-    private class MessageComposeTask extends AsyncTask<String, Void, Boolean> {
-    	Dialog _mDialog;  // needed to update CAPTCHA on failure
-    	ThingInfo _mTargetThingInfo;
-    	String _mUserError = "Error composing message. Please try again.";
-    	String _mCaptcha;
-    	
-    	MessageComposeTask(Dialog dialog, ThingInfo targetThingInfo, String captcha) {
-    		_mDialog = dialog;
-    		_mTargetThingInfo = targetThingInfo;
-    		_mCaptcha = captcha;
-    	}
-    	
-    	@Override
-        public Boolean doInBackground(String... text) {
-        	HttpEntity entity = null;
-        	
-        	if (!mSettings.isLoggedIn()) {
-        		Common.showErrorToast("You must be logged in to compose a message.", Toast.LENGTH_LONG, InboxListActivity.this);
-        		_mUserError = "Not logged in";
-        		return false;
-        	}
-        	// Update the modhash if necessary
-        	if (mSettings.getModhash() == null) {
-        		String modhash = Common.doUpdateModhash(mClient);
-        		if (modhash == null) {
-        			// doUpdateModhash should have given an error about credentials
-        			Common.doLogout(mSettings, mClient, getApplicationContext());
-        			if (Constants.LOGGING) Log.e(TAG, "Message compose failed because doUpdateModhash() failed");
-        			return false;
-        		}
-        		mSettings.setModhash(modhash);
-        	}
-        	
-        	try {
-        		// Construct data
-    			List<NameValuePair> nvps = new ArrayList<NameValuePair>();
-    			nvps.add(new BasicNameValuePair("text", text[0].toString()));
-    			nvps.add(new BasicNameValuePair("subject", _mTargetThingInfo.getSubject()));
-    			nvps.add(new BasicNameValuePair("to", _mTargetThingInfo.getDest()));
-    			nvps.add(new BasicNameValuePair("uh", mSettings.getModhash().toString()));
-    			nvps.add(new BasicNameValuePair("thing_id", ""));
-    			if (mCaptchaIden != null) {
-    				nvps.add(new BasicNameValuePair("iden", mCaptchaIden));
-    				nvps.add(new BasicNameValuePair("captcha", _mCaptcha.toString()));
-    			}
-    			
-    			HttpPost httppost = new HttpPost(Constants.REDDIT_BASE_URL + "/api/compose");
-    	        httppost.setEntity(new UrlEncodedFormEntity(nvps, HTTP.UTF_8));
-    	        
-    	        if (Constants.LOGGING) Log.d(TAG, nvps.toString());
-    	        
-                // Perform the HTTP POST request
-    	    	HttpResponse response = mClient.execute(httppost);
-            	entity = response.getEntity();
-
-           		// Don't need the return value ID since reply isn't posted to inbox
-            	Common.checkIDResponse(response, entity);
-
-            	return true;
-            	
-        	} catch (CaptchaException e) {
-        		if (Constants.LOGGING) Log.e(TAG, "CaptchaException", e);
-        		_mUserError = e.getMessage();
-    			new MyCaptchaDownloadTask(_mDialog).execute();
-        	} catch (Exception e) {
-        		if (Constants.LOGGING) Log.e(TAG, "MessageComposeTask", e);
-        		_mUserError = e.getMessage();
-        	} finally {
-        		if (entity != null) {
-        			try {
-        				entity.consumeContent();
-        			} catch (IOException e2) {
-        				if (Constants.LOGGING) Log.e(TAG, "entity.consumeContent()", e2);
-        			}
-        		}
-        	}
-        	return false;
-        }
-    	
-    	@Override
-    	public void onPreExecute() {
-    		showDialog(Constants.DIALOG_COMPOSING);
-    	}
-    	
-    	@Override
-    	public void onPostExecute(Boolean success) {
-    		dismissDialog(Constants.DIALOG_COMPOSING);
-    		if (success) {
-    			Toast.makeText(InboxListActivity.this, "Message sent.", Toast.LENGTH_SHORT).show();
-    			// TODO: add the reply beneath the original, OR redirect to sent messages page
-    		} else {
-    			Common.showErrorToast(_mUserError, Toast.LENGTH_LONG, InboxListActivity.this);
-    		}
-    	}
-    }
-    
-    private class MyCaptchaCheckRequiredTask extends CaptchaCheckRequiredTask {
-    	
-    	Dialog _mDialog;
-    	
-		public MyCaptchaCheckRequiredTask(Dialog dialog) {
-			super(Constants.REDDIT_BASE_URL + "/message/compose/", mClient);
-			_mDialog = dialog;
-		}
-		
-		@Override
-		protected void saveState() {
-			InboxListActivity.this.mCaptchaIden = _mCaptchaIden;
-			InboxListActivity.this.mCaptchaUrl = _mCaptchaUrl;
-		}
-
-		@Override
-		public void onPreExecute() {
-			// Hide send button so user can't send until we know whether he needs captcha
-			final Button sendButton = (Button) _mDialog.findViewById(R.id.compose_send_button);
-			sendButton.setVisibility(View.INVISIBLE);
-			// Show "loading captcha" label
-			final TextView loadingCaptcha = (TextView) _mDialog.findViewById(R.id.compose_captcha_loading);
-			loadingCaptcha.setVisibility(View.VISIBLE);
-		}
-		
-		@Override
-		public void onPostExecute(Boolean required) {
-			final TextView captchaLabel = (TextView) _mDialog.findViewById(R.id.compose_captcha_textview);
-			final ImageView captchaImage = (ImageView) _mDialog.findViewById(R.id.compose_captcha_image);
-			final EditText captchaEdit = (EditText) _mDialog.findViewById(R.id.compose_captcha_input);
-			final TextView loadingCaptcha = (TextView) _mDialog.findViewById(R.id.compose_captcha_loading);
-			final Button sendButton = (Button) _mDialog.findViewById(R.id.compose_send_button);
-			if (required == null) {
-				Common.showErrorToast("Error retrieving captcha. Use the menu to try again.", Toast.LENGTH_LONG, InboxListActivity.this);
-				return;
-			}
-			if (required) {
-				captchaLabel.setVisibility(View.VISIBLE);
-				captchaImage.setVisibility(View.VISIBLE);
-				captchaEdit.setVisibility(View.VISIBLE);
-				// Launch a task to download captcha and display it
-				new MyCaptchaDownloadTask(_mDialog).execute();
-			} else {
-				captchaLabel.setVisibility(View.GONE);
-				captchaImage.setVisibility(View.GONE);
-				captchaEdit.setVisibility(View.GONE);
-			}
-			loadingCaptcha.setVisibility(View.GONE);
-			sendButton.setVisibility(View.VISIBLE);
-		}
-	}
-	
-    private class MyCaptchaDownloadTask extends CaptchaDownloadTask {
-    	
-    	Dialog _mDialog;
-    	
-    	public MyCaptchaDownloadTask(Dialog dialog) {
-    		super(mCaptchaUrl, mClient);
-    		_mDialog = dialog;
-    	}
-    	
-		@Override
-		public void onPostExecute(Drawable captcha) {
-			if (captcha == null) {
-				Common.showErrorToast("Error retrieving captcha. Use the menu to try again.", Toast.LENGTH_LONG, InboxListActivity.this);
-				return;
-			}
-			final ImageView composeCaptchaView = (ImageView) _mDialog.findViewById(R.id.compose_captcha_image);
-			composeCaptchaView.setVisibility(View.VISIBLE);
-			composeCaptchaView.setImageDrawable(captcha);
-		}
-	}
-    
-    
-    
-    /**
-     * Populates the menu.
-     */
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        super.onCreateOptionsMenu(menu);
-        
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.inbox, menu);
-        
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-    	
-    	switch (item.getItemId()) {
-    	case R.id.compose_message_menu_id:
-    		showDialog(Constants.DIALOG_COMPOSE);
-    		break;
-    	case R.id.refresh_menu_id:
-			new DownloadMessagesTask(mWhichInbox).execute(Constants.DEFAULT_COMMENT_DOWNLOAD_LIMIT);
-			break;
-    	}
-    	
-    	return true;
-    }
     
     @Override
     protected Dialog onCreateDialog(int id) {
@@ -1119,14 +922,14 @@ public final class InboxListActivity extends ListActivity
     		dialog = new LoginDialog(this, mSettings, true) {
 				@Override
 				public void onLoginChosen(String user, String password) {
-					dismissDialog(Constants.DIALOG_LOGIN);
+					removeDialog(Constants.DIALOG_LOGIN);
 		        	new MyLoginTask(user, password).execute();
 				}
 			};
     		break;
     		
     	case Constants.DIALOG_REPLY:
-    		dialog = new Dialog(this);
+    		dialog = new Dialog(this, mSettings.getDialogTheme());
     		dialog.setContentView(R.layout.compose_reply_dialog);
     		final EditText replyBody = (EditText) dialog.findViewById(R.id.body);
     		final Button replySaveButton = (Button) dialog.findViewById(R.id.reply_save_button);
@@ -1135,7 +938,7 @@ public final class InboxListActivity extends ListActivity
     			public void onClick(View v) {
     				if(mReplyTargetName != null){
         				new MessageReplyTask(mReplyTargetName).execute(replyBody.getText().toString());
-        				dismissDialog(Constants.DIALOG_REPLY);
+        				removeDialog(Constants.DIALOG_REPLY);
     				}
     				else{
     					Common.showErrorToast("Error replying. Please try again.", Toast.LENGTH_SHORT, InboxListActivity.this);
@@ -1144,78 +947,25 @@ public final class InboxListActivity extends ListActivity
     		});
     		replyCancelButton.setOnClickListener(new OnClickListener() {
     			public void onClick(View v) {
-    				dismissDialog(Constants.DIALOG_REPLY);
+    				removeDialog(Constants.DIALOG_REPLY);
     			}
     		});
     		break;
-    	case Constants.DIALOG_COMPOSE:
-    		inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-    		builder = new AlertDialog.Builder(this);
-    		layout = inflater.inflate(R.layout.compose_dialog, null);
-    		dialog = builder.setView(layout).create();
-    		final Dialog composeDialog = dialog;
-    		final EditText composeDestination = (EditText) layout.findViewById(R.id.compose_destination_input);
-    		final EditText composeSubject = (EditText) layout.findViewById(R.id.compose_subject_input);
-    		final EditText composeText = (EditText) layout.findViewById(R.id.compose_text_input);
-    		final Button composeSendButton = (Button) layout.findViewById(R.id.compose_send_button);
-    		final Button composeCancelButton = (Button) layout.findViewById(R.id.compose_cancel_button);
-    		final EditText composeCaptcha = (EditText) layout.findViewById(R.id.compose_captcha_input);
-    		composeSendButton.setOnClickListener(new OnClickListener() {
-				public void onClick(View v) {
-		    		ThingInfo hi = new ThingInfo();
-		    		// reddit.com performs these sanity checks too.
-		    		if ("".equals(composeDestination.getText().toString().trim())) {
-		    			Toast.makeText(InboxListActivity.this, "please enter a username", Toast.LENGTH_LONG).show();
-		    			return;
-		    		}
-		    		if ("".equals(composeSubject.getText().toString().trim())) {
-		    			Toast.makeText(InboxListActivity.this, "please enter a subject", Toast.LENGTH_LONG).show();
-		    			return;
-		    		}
-		    		if ("".equals(composeText.getText().toString().trim())) {
-		    			Toast.makeText(InboxListActivity.this, "you need to enter a message", Toast.LENGTH_LONG).show();
-		    			return;
-		    		}
-		    		if (composeCaptcha.getVisibility() == View.VISIBLE && "".equals(composeCaptcha.getText().toString().trim())) {
-		    			Toast.makeText(InboxListActivity.this, "", Toast.LENGTH_LONG).show();
-		    			return;
-		    		}
-		    		hi.setDest(composeDestination.getText().toString().trim());
-		    		hi.setSubject(composeSubject.getText().toString().trim());
-		    		new MessageComposeTask(composeDialog, hi, composeCaptcha.getText().toString().trim())
-		    			.execute(composeText.getText().toString().trim());
-		    		dismissDialog(Constants.DIALOG_COMPOSE);
-				}
-    		});
-    		composeCancelButton.setOnClickListener(new OnClickListener() {
-				public void onClick(View v) {
-					dismissDialog(Constants.DIALOG_COMPOSE);
-				}
-    		});
-    		break;
-    		
    		// "Please wait"
     	case Constants.DIALOG_LOGGING_IN:
-    		pdialog = new ProgressDialog(this);
+    		pdialog = new ProgressDialog(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		pdialog.setMessage("Logging in...");
     		pdialog.setIndeterminate(true);
-    		pdialog.setCancelable(false);
+    		pdialog.setCancelable(true);
     		dialog = pdialog;
     		break;
     	case Constants.DIALOG_REPLYING:
-    		pdialog = new ProgressDialog(this);
+    		pdialog = new ProgressDialog(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		pdialog.setMessage("Sending reply...");
     		pdialog.setIndeterminate(true);
-    		pdialog.setCancelable(false);
+    		pdialog.setCancelable(true);
     		dialog = pdialog;
     		break;   		
-    	case Constants.DIALOG_COMPOSING:
-    		pdialog = new ProgressDialog(this);
-    		pdialog.setMessage("Composing message...");
-    		pdialog.setIndeterminate(true);
-    		pdialog.setCancelable(false);
-    		dialog = pdialog;
-    		break;
     		
     	default:
     		throw new IllegalArgumentException("Unexpected dialog id "+id);
@@ -1242,10 +992,6 @@ public final class InboxListActivity extends ListActivity
     			EditText replyBodyView = (EditText) dialog.findViewById(R.id.body); 
     			replyBodyView.setText(mVoteTargetThingInfo.getReplyDraft());
     		}
-    		break;
-    		
-    	case Constants.DIALOG_COMPOSE:
-    		new MyCaptchaCheckRequiredTask(dialog).execute();
     		break;
     		
 		default:
@@ -1298,7 +1044,7 @@ public final class InboxListActivity extends ListActivity
         };
         for (int dialog : myDialogs) {
 	        try {
-	        	dismissDialog(dialog);
+	        	removeDialog(dialog);
 		    } catch (IllegalArgumentException e) {
 		    	// Ignore.
 		    }

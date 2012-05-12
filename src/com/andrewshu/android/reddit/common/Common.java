@@ -21,40 +21,20 @@ package com.andrewshu.android.reddit.common;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.reflect.Method;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.zip.GZIPInputStream;
 
-import org.apache.http.Header;
-import org.apache.http.HeaderElement;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpException;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.HttpResponse;
-import org.apache.http.HttpResponseInterceptor;
-import org.apache.http.client.CookieStore;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.conn.ClientConnectionManager;
-import org.apache.http.conn.scheme.PlainSocketFactory;
-import org.apache.http.conn.scheme.Scheme;
-import org.apache.http.conn.scheme.SchemeRegistry;
-import org.apache.http.conn.scheme.SocketFactory;
-import org.apache.http.conn.ssl.SSLSocketFactory;
-import org.apache.http.entity.HttpEntityWrapper;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
-import org.apache.http.params.HttpConnectionParams;
-import org.apache.http.params.HttpParams;
-import org.apache.http.protocol.HttpContext;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.ArrayNode;
 
+import android.app.Activity;
 import android.app.ListActivity;
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -62,6 +42,10 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Resources;
+import android.database.Cursor;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.preference.PreferenceManager;
 import android.provider.Browser;
@@ -77,32 +61,26 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.andrewshu.android.reddit.R;
-import com.andrewshu.android.reddit.RedditIsFunApplication;
 import com.andrewshu.android.reddit.browser.BrowserActivity;
 import com.andrewshu.android.reddit.captcha.CaptchaException;
 import com.andrewshu.android.reddit.comments.CommentsListActivity;
 import com.andrewshu.android.reddit.common.util.StringUtils;
 import com.andrewshu.android.reddit.common.util.Util;
 import com.andrewshu.android.reddit.mail.InboxActivity;
-import com.andrewshu.android.reddit.profile.ProfileActivity;
 import com.andrewshu.android.reddit.settings.RedditSettings;
 import com.andrewshu.android.reddit.threads.ThreadsListActivity;
+import com.andrewshu.android.reddit.user.ProfileActivity;
 
 public class Common {
 	
 	private static final String TAG = "Common";
 	
-	private static final DefaultHttpClient mGzipHttpClient = createGzipHttpClient();
-	private static final CookieStore mCookieStore = mGzipHttpClient.getCookieStore();
 	// 1:subreddit 2:threadId 3:commentId
 	private static final Pattern COMMENT_LINK = Pattern.compile(Constants.COMMENT_PATH_PATTERN_STRING);
 	private static final Pattern REDDIT_LINK = Pattern.compile(Constants.REDDIT_PATH_PATTERN_STRING);
 	private static final Pattern USER_LINK = Pattern.compile(Constants.USER_PATH_PATTERN_STRING);
 	private static final ObjectMapper mObjectMapper = new ObjectMapper();
 	
-	// Default connection and socket timeout of 60 seconds.  Tweak to taste.
-	private static final int SOCKET_OPERATION_TIMEOUT = 60 * 1000;
-
 	public static void showErrorToast(String error, int duration, Context context) {
 		LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 		Toast t = new Toast(context);
@@ -114,15 +92,29 @@ public class Common {
 		t.show();
 	}
 	
+    public static boolean shouldLoadThumbnails(Activity activity, RedditSettings settings) {
+    	//check for wifi connection and wifi thumbnail setting
+    	boolean thumbOkay = true;
+    	if (settings.isLoadThumbnailsOnlyWifi())
+    	{
+    		thumbOkay = false;
+    		ConnectivityManager connMan = (ConnectivityManager) activity.getSystemService(Context.CONNECTIVITY_SERVICE);
+    		NetworkInfo netInfo = connMan.getActiveNetworkInfo();
+    		if (netInfo != null && netInfo.getType() == ConnectivityManager.TYPE_WIFI && netInfo.isConnected()) {
+    			thumbOkay = true;
+    		}
+    	}
+    	return settings.isLoadThumbnails() && thumbOkay;
+    }
+    
 	/**
      * Set the Drawable for the list selector etc. based on the current theme.
      */
 	public static void updateListDrawables(ListActivity la, int theme) {
 		ListView lv = la.getListView();
 		if (Util.isLightTheme(theme)) {
+			lv.setBackgroundResource(android.R.color.background_light);
     		lv.setSelector(R.drawable.list_selector_blue);
-        	// HACK: set background color directly for android 2.0
-        	lv.setBackgroundResource(R.color.white);
     	} else /* if (Common.isDarkTheme(theme)) */ {
     		lv.setSelector(android.R.drawable.list_selector_background);
     	}
@@ -142,10 +134,10 @@ public class Common {
         		return;
         	View nextPreviousBorder = act.findViewById(R.id.next_previous_border_top);
         	
-			if (shouldShow && nextPreviousView.getVisibility() != View.VISIBLE) {
+			if (shouldShow) {
 		    	if (nextPreviousView != null && nextPreviousBorder != null) {
 			    	if (Util.isLightTheme(settings.getTheme())) {
-			    		nextPreviousView.setBackgroundResource(R.color.white);
+			    		nextPreviousView.setBackgroundResource(android.R.color.background_light);
 			       		nextPreviousBorder.setBackgroundResource(R.color.black);
 			    	} else {
 			       		nextPreviousBorder.setBackgroundResource(R.color.white);
@@ -155,7 +147,7 @@ public class Common {
 				// update the "next 25" and "prev 25" buttons
 		    	nextButton = (Button) act.findViewById(R.id.next_button);
 		    	previousButton = (Button) act.findViewById(R.id.previous_button);
-			} else if (!shouldShow && nextPreviousView.getVisibility() == View.VISIBLE) {
+			} else {
 				nextPreviousView.setVisibility(View.GONE);
 	    	}
     	}
@@ -190,11 +182,22 @@ public class Common {
     	}
     }
     
+    public static void setTextColorFromTheme(int theme, Resources resources, TextView... textViews) {
+    	int color;
+    	if (Util.isLightTheme(theme))
+    		color = resources.getColor(R.color.reddit_light_dialog_text_color);
+    	else
+    		color = resources.getColor(R.color.reddit_dark_dialog_text_color);
+    	for (TextView textView : textViews)
+    		textView.setTextColor(color);
+    }
+    
+    
 	
     static void clearCookies(RedditSettings settings, HttpClient client, Context context) {
         settings.setRedditSessionCookie(null);
 
-        Common.getCookieStore().clear();
+        RedditIsFunHttpClientFactory.getCookieStore().clear();
         CookieSyncManager.getInstance().sync();
         
         SharedPreferences sessionPrefs = PreferenceManager.getDefaultSharedPreferences(context);
@@ -418,7 +421,16 @@ public class Common {
      * @param useExternalBrowser
      */
     public static void launchBrowser(Context context, String url, String threadUrl,
-    		boolean requireNewTask, boolean bypassParser, boolean useExternalBrowser) {
+			boolean requireNewTask, boolean bypassParser, boolean useExternalBrowser,
+			boolean saveHistory) {
+    	
+    	try {
+			if (saveHistory) {
+				Browser.updateVisitedHistory(context.getContentResolver(), url, true);
+			}
+    	} catch (Exception ex) {
+    		if (Constants.LOGGING) Log.i(TAG, "Browser.updateVisitedHistory error", ex);
+    	}
     	
     	Uri uri = Uri.parse(url);
     	
@@ -466,7 +478,6 @@ public class Common {
 	    			if (requireNewTask)
 	    				intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 	    			context.startActivity(intent);
-	    			return;
 	    		} else {
 		    		// Assume it points to a thread aka CommentsList
 	    			CacheInfo.invalidateCachedThread(context);
@@ -483,7 +494,7 @@ public class Common {
     	uri = Util.optimizeMobileUri(uri);
     	
     	// Some URLs should always be opened externally, if BrowserActivity doesn't support their content.
-    	if (Util.isYoutubeUri(uri))
+    	if (Util.isYoutubeUri(uri) || Util.isAndroidMarketUri(uri))
     		useExternalBrowser = true;
     	
     	if (useExternalBrowser) {
@@ -503,102 +514,35 @@ public class Common {
     	}
 	}
     
+    public static boolean isClicked(Context context, String url) {
+    	Cursor cursor;
+    	try {
+			cursor = context.getContentResolver().query(
+					Browser.BOOKMARKS_URI,
+					Browser.HISTORY_PROJECTION,
+					Browser.HISTORY_PROJECTION[Browser.HISTORY_PROJECTION_URL_INDEX] + "=?",
+					new String[]{ url },
+					null
+			);
+    	} catch (Exception ex) {
+    		if (Constants.LOGGING) Log.w(TAG, "Error querying Android Browser for history; manually revoked permission?", ex);
+    		return false;
+    	}
+    	
+		if (cursor != null) {
+	        boolean isClicked = cursor.moveToFirst();  // returns true if cursor is not empty
+	        cursor.close();
+	        return isClicked;
+		} else {
+			return false;
+		}
+    }
+    
     public static ObjectMapper getObjectMapper() {
     	return mObjectMapper;
     }
     
-	/**
-	 * http://hc.apache.org/httpcomponents-client/examples.html
-	 * @return a Gzip-enabled DefaultHttpClient
-	 */
-	public static HttpClient getGzipHttpClient() {
-		return mGzipHttpClient;
-	}
-	
-	public static CookieStore getCookieStore() {
-		return mCookieStore;
-	}
-	
-	private static DefaultHttpClient createGzipHttpClient() {
-		DefaultHttpClient httpclient = new DefaultHttpClient(){
-		    @Override
-		    protected ClientConnectionManager createClientConnectionManager() {
-		        SchemeRegistry registry = new SchemeRegistry();
-		        registry.register(
-		                new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
-		        registry.register(
-		        		new Scheme("https", getHttpsSocketFactory(), 443));
-		        HttpParams params = getParams();
-				HttpConnectionParams.setConnectionTimeout(params, SOCKET_OPERATION_TIMEOUT);
-				HttpConnectionParams.setSoTimeout(params, SOCKET_OPERATION_TIMEOUT);
-		        return new ThreadSafeClientConnManager(params, registry);
-		    }
-		    
-		    /** Gets an HTTPS socket factory with SSL Session Caching if such support is available, otherwise falls back to a non-caching factory
-		     * @return
-		     */
-		    protected SocketFactory getHttpsSocketFactory(){
-				try {
-					Class<?> sslSessionCacheClass = Class.forName("android.net.SSLSessionCache");
-			    	Object sslSessionCache = sslSessionCacheClass.getConstructor(Context.class).newInstance(RedditIsFunApplication.getApplication());
-			    	Method getHttpSocketFactory = Class.forName("android.net.SSLCertificateSocketFactory").getMethod("getHttpSocketFactory", new Class<?>[]{int.class, sslSessionCacheClass});
-			    	return (SocketFactory) getHttpSocketFactory.invoke(null, SOCKET_OPERATION_TIMEOUT, sslSessionCache);
-				}catch(Exception e){
-					return SSLSocketFactory.getSocketFactory();
-				}
-		    }
-		};
-		
-		
-        httpclient.addRequestInterceptor(new HttpRequestInterceptor() {
-            public void process(
-                    final HttpRequest request,
-                    final HttpContext context
-            ) throws HttpException, IOException {
-                request.setHeader("User-Agent", Constants.USER_AGENT_STRING);
-                if (!request.containsHeader("Accept-Encoding"))
-                    request.addHeader("Accept-Encoding", "gzip");
-            }
-        });
-        httpclient.addResponseInterceptor(new HttpResponseInterceptor() {
-            public void process(
-                    final HttpResponse response, 
-                    final HttpContext context) throws HttpException, IOException {
-                HttpEntity entity = response.getEntity();
-                Header ceheader = entity.getContentEncoding();
-                if (ceheader != null) {
-                    HeaderElement[] codecs = ceheader.getElements();
-                    for (int i = 0; i < codecs.length; i++) {
-                        if (codecs[i].getName().equalsIgnoreCase("gzip")) {
-                            response.setEntity(
-                                    new GzipDecompressingEntity(response.getEntity())); 
-                            return;
-                        }
-                    }
-                }
-            }
-        });
-        return httpclient;
-	}
-    static class GzipDecompressingEntity extends HttpEntityWrapper {
-        public GzipDecompressingEntity(final HttpEntity entity) {
-            super(entity);
-        }
-        @Override
-        public InputStream getContent()
-            throws IOException, IllegalStateException {
-            // the wrapped entity's getContent() decides about repeatability
-            InputStream wrappedin = wrappedEntity.getContent();
-            return new GZIPInputStream(wrappedin);
-        }
-        @Override
-        public long getContentLength() {
-            // length of ungzipped content is not known
-            return -1;
-        }
-    }
-	
-    public static void logDLong(String tag, String msg) {
+	public static void logDLong(String tag, String msg) {
 		int c;
 		boolean done = false;
 		StringBuilder sb = new StringBuilder();
@@ -628,5 +572,13 @@ public class Common {
     		subreddit_id = children.get(0).get("data").get("subreddit_id").getTextValue();
     	}
     	return subreddit_id;
+    }
+
+    /** http://developer.android.com/guide/topics/ui/actionbar.html#Home */
+    public static void goHome(Activity activity) {
+    	// app icon in action bar clicked; go home
+        Intent intent = new Intent(activity, ThreadsListActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        activity.startActivity(intent);
     }
 }

@@ -29,12 +29,14 @@
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
         android:orientation="vertical">
+        
+    <include layout="@layout/loading_light" />
+    <include layout="@layout/loading_dark" />
     
     <!-- OP post is the position 0 item of this list -->
     <ListView android:id="@android:id/list"
     	android:layout_width="fill_parent"
 	    android:layout_height="fill_parent"
-	    android:cacheColorHint="#00000000"
 	    android:divider="@null"
         android:transcriptMode="disabled"
         />

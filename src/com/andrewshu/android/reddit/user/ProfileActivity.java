@@ -17,14 +17,12 @@
  * along with "reddit is fun".  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.andrewshu.android.reddit.profile;
+package com.andrewshu.android.reddit.user;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -54,6 +52,7 @@ import android.text.style.URLSpan;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
+import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -80,7 +79,9 @@ import com.andrewshu.android.reddit.comments.CommentsListActivity;
 import com.andrewshu.android.reddit.common.CacheInfo;
 import com.andrewshu.android.reddit.common.Common;
 import com.andrewshu.android.reddit.common.Constants;
+import com.andrewshu.android.reddit.common.FormValidation;
 import com.andrewshu.android.reddit.common.ProgressInputStream;
+import com.andrewshu.android.reddit.common.RedditIsFunHttpClientFactory;
 import com.andrewshu.android.reddit.common.tasks.VoteTask;
 import com.andrewshu.android.reddit.common.util.StringUtils;
 import com.andrewshu.android.reddit.common.util.Util;
@@ -92,10 +93,12 @@ import com.andrewshu.android.reddit.things.Listing;
 import com.andrewshu.android.reddit.things.ListingData;
 import com.andrewshu.android.reddit.things.ThingInfo;
 import com.andrewshu.android.reddit.things.ThingListing;
-import com.andrewshu.android.reddit.threads.BitmapManager;
+import com.andrewshu.android.reddit.threads.ShowThumbnailsTask;
+import com.andrewshu.android.reddit.threads.ShowThumbnailsTask.ThumbnailLoadAction;
+import com.andrewshu.android.reddit.threads.ThreadClickDialog;
+import com.andrewshu.android.reddit.threads.ThreadClickDialogOnClickListenerFactory;
 import com.andrewshu.android.reddit.threads.ThreadsListActivity;
-import com.andrewshu.android.reddit.threads.ThreadsListActivity.ThreadClickDialogOnClickListenerFactory;
-import com.andrewshu.android.reddit.threads.ThreadsListActivity.ThumbnailOnClickListenerFactory;
+import com.andrewshu.android.reddit.threads.ThumbnailOnClickListenerFactory;
 
 /**
  * Activity to view user submissions and comments.
@@ -110,11 +113,8 @@ public final class ProfileActivity extends ListActivity
 	private static final String TAG = "ProfileActivity";
 	
 	static final Pattern USER_PATH_PATTERN = Pattern.compile(Constants.USER_PATH_PATTERN_STRING);
-	// 1: link karma; 2: comment karma
-	static final Pattern KARMA_PATTERN = Pattern.compile(">(\\d[^<]*)<.{2,20}link karma.+>(\\d[^<]*)<.{2,20}comment karma");
 	
     private final ObjectMapper mObjectMapper = Common.getObjectMapper();
-    private BitmapManager mBitmapManager = new BitmapManager();
     
     /** Custom list adapter that fits our threads data into the list. */
     private ThingsListAdapter mThingsAdapter;
@@ -123,7 +123,7 @@ public final class ProfileActivity extends ListActivity
     private static final Object MESSAGE_ADAPTER_LOCK = new Object();
     
     
-    private final HttpClient mClient = Common.getGzipHttpClient();
+    private final HttpClient mClient = RedditIsFunHttpClientFactory.getGzipHttpClient();
     
     
     // Common settings are stored here
@@ -146,7 +146,7 @@ public final class ProfileActivity extends ListActivity
     private String mLastAfter = null;
     private String mLastBefore = null;
     private int mLastCount = 0;
-    private String[] mKarma = null;
+    private int[] mKarma = null;
     private String mSortByUrl = null;
     private String mSortByUrlExtra = null;
     
@@ -180,6 +180,7 @@ public final class ProfileActivity extends ListActivity
         requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
         
         setContentView(R.layout.profile_list_content);
+        registerForContextMenu(getListView());
         
 		if (savedInstanceState != null) {
         	if (Constants.LOGGING) Log.d(TAG, "using savedInstanceState");
@@ -190,7 +191,7 @@ public final class ProfileActivity extends ListActivity
 	        mLastAfter = savedInstanceState.getString(Constants.LAST_AFTER_KEY);
 	        mLastBefore = savedInstanceState.getString(Constants.LAST_BEFORE_KEY);
 	        mLastCount = savedInstanceState.getInt(Constants.THREAD_LAST_COUNT_KEY);
-	        mKarma = savedInstanceState.getStringArray(Constants.KARMA_KEY);
+	        mKarma = savedInstanceState.getIntArray(Constants.KARMA_KEY);
 		    mSortByUrl = savedInstanceState.getString(Constants.CommentsSort.SORT_BY_KEY);
 	        mJumpToThreadId = savedInstanceState.getString(Constants.JUMP_TO_THREAD_ID_KEY);
 		    mVoteTargetThingInfo = savedInstanceState.getParcelable(Constants.VOTE_TARGET_THING_INFO_KEY);
@@ -275,22 +276,6 @@ public final class ProfileActivity extends ListActivity
 
     
     
-    /**
-     * Return the ThingInfo based on linear search over the names
-     */
-    private ThingInfo findThingInfoByName(String name) {
-    	if (name == null)
-    		return null;
-    	synchronized(MESSAGE_ADAPTER_LOCK) {
-    		for (int i = 0; i < mThingsAdapter.getCount(); i++) {
-    			if (mThingsAdapter.getItem(i).getName().equals(name))
-    				return mThingsAdapter.getItem(i);
-    		}
-    	}
-    	return null;
-    }
-    
-    
     private final class ThingsListAdapter extends ArrayAdapter<ThingInfo> {
     	static final int THREAD_ITEM_VIEW_TYPE = 0;
     	static final int COMMENT_ITEM_VIEW_TYPE = 1;
@@ -343,8 +328,9 @@ public final class ProfileActivity extends ListActivity
 	                view = convertView;
 	            }
 	            
-	            ThreadsListActivity.fillThreadsListItemView(view, item, ProfileActivity.this, mSettings,
-	            		mBitmapManager, true, thumbnailOnClickListenerFactory);
+	            ThreadsListActivity.fillThreadsListItemView(
+	            		position, view, item, ProfileActivity.this, mClient, mSettings, mThumbnailOnClickListenerFactory
+        		);
             }
             
             else if (getItemViewType(position) == COMMENT_ITEM_VIEW_TYPE) {
@@ -436,18 +422,22 @@ public final class ProfileActivity extends ListActivity
      * @param messagesAdapter A MessagesListAdapter to use. Pass in null if you want a new empty one created.
      */
     void resetUI(ThingsListAdapter messagesAdapter) {
-    	setTheme(mSettings.getTheme());
-    	setContentView(R.layout.profile_list_content);
-        registerForContextMenu(getListView());
+    	findViewById(R.id.loading_light).setVisibility(View.GONE);
+    	findViewById(R.id.loading_dark).setVisibility(View.GONE);
 
-        if (mSettings.isAlwaysShowNextPrevious()) {
-        	// Set mNextPreviousView to null; we can use findViewById(R.id.next_previous_layout).
-        	mNextPreviousView = null;
+    	if (mSettings.isAlwaysShowNextPrevious()) {
+    		if (mNextPreviousView != null) {
+    			getListView().removeFooterView(mNextPreviousView);
+    			mNextPreviousView = null;
+    		}
         } else {
-            // If we are not using the persistent navbar, then show as ListView footer instead
-	        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-	        mNextPreviousView = inflater.inflate(R.layout.next_previous_list_item, null);
-	        getListView().addFooterView(mNextPreviousView);
+        	findViewById(R.id.next_previous_layout).setVisibility(View.GONE);
+        	if (getListView().getFooterViewsCount() == 0) {
+	            // If we are not using the persistent navbar, then show as ListView footer instead
+		        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		        mNextPreviousView = inflater.inflate(R.layout.next_previous_list_item, null);
+		        getListView().addFooterView(mNextPreviousView);
+        	}
         }
 
         synchronized (MESSAGE_ADAPTER_LOCK) {
@@ -470,20 +460,22 @@ public final class ProfileActivity extends ListActivity
     
     private void enableLoadingScreen() {
     	if (Util.isLightTheme(mSettings.getTheme())) {
-    		setContentView(R.layout.loading_light);
+        	findViewById(R.id.loading_light).setVisibility(View.VISIBLE);
+        	findViewById(R.id.loading_dark).setVisibility(View.GONE);
     	} else {
-    		setContentView(R.layout.loading_dark);
+        	findViewById(R.id.loading_light).setVisibility(View.GONE);
+        	findViewById(R.id.loading_dark).setVisibility(View.VISIBLE);
     	}
     	synchronized (MESSAGE_ADAPTER_LOCK) {
 	    	if (mThingsAdapter != null)
 	    		mThingsAdapter.mIsLoading = true;
     	}
-    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, 0);
+    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_START);
     }
     
     private void disableLoadingScreen() {
     	resetUI(mThingsAdapter);
-    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, 10000);
+    	getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_END);
     }
 
     private void updateNextPreviousButtons() {
@@ -499,7 +491,7 @@ public final class ProfileActivity extends ListActivity
     	if (karmaLayout != null && karmaLayoutBorder != null) {
     		karmaLayout.setVisibility(View.VISIBLE);
 	    	if (Util.isLightTheme(mSettings.getTheme())) {
-	       		karmaLayout.setBackgroundResource(R.color.white);
+	       		karmaLayout.setBackgroundResource(android.R.color.background_light);
 	       		karmaLayoutBorder.setBackgroundResource(R.color.black);
 	    	} else {
 	       		karmaLayoutBorder.setBackgroundResource(R.color.white);
@@ -526,7 +518,7 @@ public final class ProfileActivity extends ListActivity
     	private String mLastAfter = null;
     	private String mLastBefore = null;
     	private int mLastCount = 0;
-    	private String[] mKarma;
+    	private int[] mKarma;
     	private String mSortByUrl;
     	private String mSortByUrlExtra;
     	
@@ -585,10 +577,12 @@ public final class ProfileActivity extends ListActivity
     				mKarma = getKarma();
     			
             	String url;
-        		StringBuilder sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/user/")
-        			.append(mUsername.trim())
-        			.append("/.json?").append(mSortByUrl).append("&")
-        			.append(mSortByUrlExtra).append("&");
+        		StringBuilder sb = new StringBuilder(Constants.REDDIT_BASE_URL).append("/user/").append(mUsername.trim()).append("/.json?");
+        		
+        		if (mSortByUrl != null)
+        			sb = sb.append(mSortByUrl).append("&");
+        		if (mSortByUrlExtra != null)
+        			sb = sb.append(mSortByUrlExtra).append("&");
         		
     			// "before" always comes back null unless you provide correct "count"
         		if (mAfter != null) {
@@ -665,45 +659,34 @@ public final class ProfileActivity extends ListActivity
             return null;
 	    }
     	
-    	private String[] getKarma() throws IOException {
-        	String url;
-    		StringBuilder sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/user/")
-    			.append(mUsername.trim());
+    	/**
+    	 * @return [linkKarma, commentKarma]
+    	 */
+    	private int[] getKarma() throws IOException {
+        	String url = new StringBuilder(Constants.REDDIT_BASE_URL).append("/user/").append(mUsername.trim()).append("/about.json").toString();
     		
-    		url = sb.toString();
     		if (Constants.LOGGING) Log.d(TAG, "karma url=" + url);
     		
     		HttpGet request = new HttpGet(url);
         	HttpResponse response = mClient.execute(request);
         	
         	HttpEntity entity = null;
-        	BufferedReader in = null;
+        	InputStream in = null;
         	try {
 	        	entity = response.getEntity();
-	        	in = new BufferedReader(new InputStreamReader(entity.getContent()));
-	        	String line;
-	        	while ((line = in.readLine()) != null) {
-	        		Matcher m = KARMA_PATTERN.matcher(line);
-	        		if (m.find()) {
-	        			return new String[] { m.group(1), m.group(2) };
-	        		}
-	        	}
-        	} catch (IOException ex) {
-        		throw ex;
-        	} catch (Exception ex) {
-        		if (Constants.LOGGING) Log.e(TAG, "getKarma", ex);
+	        	in = entity.getContent();
+	        	
+	        	UserInfo userInfo = UserInfoParser.parseJSON(in);
+	        	if (userInfo != null)
+	        		return new int[] { userInfo.getLink_karma(), userInfo.getComment_karma() };
+	        	
         	} finally {
         		try {
         			in.close();
-        		} catch (NullPointerException ex2) {
-        		} catch (Exception ex2) {
-        			if (Constants.LOGGING) Log.e(TAG, "in.close()", ex2);
-        		}
+        		} catch (Exception ignore) {}
         		try {
         			entity.consumeContent();
-        		} catch (Exception ex2) {
-        			if (Constants.LOGGING) Log.e(TAG, "entity.consumeContent()", ex2);
-        		}
+        		} catch (Exception ignore) {}
         	}
         	
         	return null;
@@ -745,7 +728,8 @@ public final class ProfileActivity extends ListActivity
 	   					_mThingInfos.add(ti);
     				} else if (Constants.THREAD_KIND.equals(tiContainer.getKind())) {
     					ThingInfo ti = tiContainer.getData();
-    					_mThingInfos.add(tiContainer.getData());
+    					ti.setClicked(Common.isClicked(ProfileActivity.this, ti.getUrl()));
+    					_mThingInfos.add(ti);
     				}
     			}
     		} catch (Exception ex) {
@@ -778,6 +762,10 @@ public final class ProfileActivity extends ListActivity
     		
     		if (_mContentLength == -1)
     			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_INDETERMINATE_OFF);
+    		else
+    			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_END);
+    		
+    		showThumbnails(_mThingInfos);
 			
     		disableLoadingScreen();
 			setTitle(String.format(getResources().getString(R.string.user_profile), mUsername));
@@ -787,13 +775,21 @@ public final class ProfileActivity extends ListActivity
 		
     	@Override
     	public void onProgressUpdate(Long... progress) {
-    		// 0-9999 is ok, 10000 means it's finished
-    		getWindow().setFeatureInt(Window.FEATURE_PROGRESS, progress[0].intValue() * 9999 / (int) _mContentLength);
+    		getWindow().setFeatureInt(Window.FEATURE_PROGRESS, progress[0].intValue() * (Window.PROGRESS_END-1) / (int) _mContentLength);
     	}
     	
     	public void propertyChange(PropertyChangeEvent event) {
     		publishProgress((Long) event.getNewValue());
     	}
+    }
+    
+    private void showThumbnails(List<ThingInfo> thingInfos) {
+    	int size = thingInfos.size();
+    	ThumbnailLoadAction[] thumbnailLoadActions = new ThumbnailLoadAction[size];
+    	for (int i = 0; i < thumbnailLoadActions.length; i++) {
+    		thumbnailLoadActions[i] = new ThumbnailLoadAction(thingInfos.get(i), null, i);
+    	}
+    	new ShowThumbnailsTask(this, mClient, R.drawable.go_arrow).execute(thumbnailLoadActions);
     }
     
     
@@ -809,7 +805,7 @@ public final class ProfileActivity extends ListActivity
     	
     	@Override
     	protected void onPostExecute(Boolean success) {
-    		dismissDialog(Constants.DIALOG_LOGGING_IN);
+    		removeDialog(Constants.DIALOG_LOGGING_IN);
     		if (success) {
     			Toast.makeText(ProfileActivity.this, "Logged in as "+mUsername, Toast.LENGTH_SHORT).show();
     			showDialog(Constants.DIALOG_COMPOSE);
@@ -832,7 +828,7 @@ public final class ProfileActivity extends ListActivity
     	
     	@Override
     	public void onPostExecute(Boolean success) {
-    		dismissDialog(Constants.DIALOG_COMPOSING);
+    		removeDialog(Constants.DIALOG_COMPOSING);
     		if (success) {
     			Toast.makeText(ProfileActivity.this, "Message sent.", Toast.LENGTH_SHORT).show();
     			// TODO: add the reply beneath the original, OR redirect to sent messages page
@@ -1027,6 +1023,9 @@ public final class ProfileActivity extends ListActivity
     	case R.id.refresh_menu_id:
 			new DownloadProfileTask(mUsername).execute(Constants.DEFAULT_COMMENT_DOWNLOAD_LIMIT);
 			break;
+    	case android.R.id.home:
+    		Common.goHome(this);
+    		break;
     	}
     	
     	return true;
@@ -1045,7 +1044,7 @@ public final class ProfileActivity extends ListActivity
     		dialog = new LoginDialog(this, mSettings, false) {
 				@Override
 				public void onLoginChosen(String user, String password) {
-					dismissDialog(Constants.DIALOG_LOGIN);
+					removeDialog(Constants.DIALOG_LOGIN);
 		        	new MyLoginTask(user, password).execute();
 				}
 			};
@@ -1053,8 +1052,19 @@ public final class ProfileActivity extends ListActivity
     		
     	case Constants.DIALOG_COMPOSE:
     		inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-    		builder = new AlertDialog.Builder(this);
+    		builder = new AlertDialog.Builder(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		layout = inflater.inflate(R.layout.compose_dialog, null);
+    		
+    		Common.setTextColorFromTheme(
+    				mSettings.getTheme(),
+    				getResources(),
+    				(TextView) layout.findViewById(R.id.compose_destination_textview),
+    				(TextView) layout.findViewById(R.id.compose_subject_textview),
+    				(TextView) layout.findViewById(R.id.compose_message_textview),
+    				(TextView) layout.findViewById(R.id.compose_captcha_textview),
+    				(TextView) layout.findViewById(R.id.compose_captcha_loading)
+			);
+
     		final EditText composeDestination = (EditText) layout.findViewById(R.id.compose_destination_input);
     		final EditText composeSubject = (EditText) layout.findViewById(R.id.compose_subject_input);
     		final EditText composeText = (EditText) layout.findViewById(R.id.compose_text_input);
@@ -1068,63 +1078,48 @@ public final class ProfileActivity extends ListActivity
     		composeSendButton.setOnClickListener(new OnClickListener() {
 				public void onClick(View v) {
 		    		ThingInfo hi = new ThingInfo();
-		    		// reddit.com performs these sanity checks too.
-		    		if ("".equals(composeDestination.getText().toString().trim())) {
-		    			Toast.makeText(ProfileActivity.this, "please enter a username", Toast.LENGTH_LONG).show();
+		    		
+		    		if (!FormValidation.validateComposeMessageInputFields(ProfileActivity.this, composeDestination, composeSubject, composeText, composeCaptcha))
 		    			return;
-		    		}
-		    		if ("".equals(composeSubject.getText().toString().trim())) {
-		    			Toast.makeText(ProfileActivity.this, "please enter a subject", Toast.LENGTH_LONG).show();
-		    			return;
-		    		}
-		    		if ("".equals(composeText.getText().toString().trim())) {
-		    			Toast.makeText(ProfileActivity.this, "you need to enter a message", Toast.LENGTH_LONG).show();
-		    			return;
-		    		}
-		    		if (composeCaptcha.getVisibility() == View.VISIBLE && "".equals(composeCaptcha.getText().toString().trim())) {
-		    			Toast.makeText(ProfileActivity.this, "", Toast.LENGTH_LONG).show();
-		    			return;
-		    		}
+
 		    		hi.setDest(composeDestination.getText().toString().trim());
 		    		hi.setSubject(composeSubject.getText().toString().trim());
 		    		new MyMessageComposeTask(composeDialog, hi, composeCaptcha.getText().toString().trim())
 		    			.execute(composeText.getText().toString().trim());
-		    		dismissDialog(Constants.DIALOG_COMPOSE);
+		    		removeDialog(Constants.DIALOG_COMPOSE);
 				}
     		});
     		composeCancelButton.setOnClickListener(new OnClickListener() {
 				public void onClick(View v) {
-					dismissDialog(Constants.DIALOG_COMPOSE);
+					removeDialog(Constants.DIALOG_COMPOSE);
 				}
     		});
     		break;
     		
     	case Constants.DIALOG_THREAD_CLICK:
-    		inflater = (LayoutInflater)this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-			builder = new AlertDialog.Builder(this);
-			dialog = builder.setView(inflater.inflate(R.layout.thread_click_dialog, null)).create();
+    		dialog = new ThreadClickDialog(this, mSettings);
 			break;
     		
    		// "Please wait"
     	case Constants.DIALOG_LOGGING_IN:
-    		pdialog = new ProgressDialog(this);
+    		pdialog = new ProgressDialog(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		pdialog.setMessage("Logging in...");
     		pdialog.setIndeterminate(true);
-    		pdialog.setCancelable(false);
+    		pdialog.setCancelable(true);
     		dialog = pdialog;
     		break;
     	case Constants.DIALOG_REPLYING:
-    		pdialog = new ProgressDialog(this);
+    		pdialog = new ProgressDialog(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		pdialog.setMessage("Sending reply...");
     		pdialog.setIndeterminate(true);
-    		pdialog.setCancelable(false);
+    		pdialog.setCancelable(true);
     		dialog = pdialog;
     		break;   		
     	case Constants.DIALOG_COMPOSING:
-    		pdialog = new ProgressDialog(this);
+    		pdialog = new ProgressDialog(new ContextThemeWrapper(this, mSettings.getDialogTheme()));
     		pdialog.setMessage("Composing message...");
     		pdialog.setIndeterminate(true);
-    		pdialog.setCancelable(false);
+    		pdialog.setCancelable(true);
     		dialog = pdialog;
     		break;
     		
@@ -1155,14 +1150,18 @@ public final class ProfileActivity extends ListActivity
     		break;
     		
     	case Constants.DIALOG_THREAD_CLICK:
-    		ThreadsListActivity.fillThreadClickDialog(dialog, mVoteTargetThingInfo, mSettings,
-    				threadClickDialogOnClickListenerFactory);
+    		ThreadsListActivity.fillThreadClickDialog(dialog, mVoteTargetThingInfo, mSettings, mThreadClickDialogOnClickListenerFactory);
     		break;
     		
 		default:
 			// No preparation based on app state is required.
 			break;
     	}
+    }
+    
+    private void setLinkClicked(ThingInfo threadThingInfo) {
+		threadThingInfo.setClicked(true);
+		mThingsAdapter.notifyDataSetChanged();
     }
     
 	private final OnClickListener downloadAfterOnClickListener = new OnClickListener() {
@@ -1176,50 +1175,59 @@ public final class ProfileActivity extends ListActivity
 		}
 	};
 	
-	private final ThumbnailOnClickListenerFactory thumbnailOnClickListenerFactory
+	private final ThumbnailOnClickListenerFactory mThumbnailOnClickListenerFactory
 			= new ThumbnailOnClickListenerFactory() {
-		public OnClickListener getThumbnailOnClickListener(String jumpToId, String url, String threadUrl, Context context) {
-//			final String fJumpToId = jumpToId;
-			final String fUrl = url;
-			final String fThreadUrl = threadUrl;
+		@Override
+		public OnClickListener getThumbnailOnClickListener(final ThingInfo threadThingInfo, final Activity activity) {
 			return new OnClickListener() {
 				public void onClick(View v) {
-//					ProfileActivity.this.mJumpToThreadId = fJumpToId;
-					Common.launchBrowser(ProfileActivity.this, fUrl, fThreadUrl,
-							false, false, ProfileActivity.this.mSettings.isUseExternalBrowser());
+//					mJumpToThreadId = jumpToId;
+					setLinkClicked(threadThingInfo);
+					Common.launchBrowser(
+							activity,
+							threadThingInfo.getUrl(),
+							Util.createThreadUri(threadThingInfo).toString(),
+							false,
+							false,
+							mSettings.isUseExternalBrowser(),
+							mSettings.isSaveHistory()
+					);
 				}
 			};
 		}
 	};
 	
-	private final ThreadClickDialogOnClickListenerFactory threadClickDialogOnClickListenerFactory
+	private final ThreadClickDialogOnClickListenerFactory mThreadClickDialogOnClickListenerFactory
 			= new ThreadClickDialogOnClickListenerFactory() {
+		@Override
 		public OnClickListener getLoginOnClickListener() {
 			return new OnClickListener() {
 				public void onClick(View v) {
-					dismissDialog(Constants.DIALOG_THREAD_CLICK);
+					removeDialog(Constants.DIALOG_THREAD_CLICK);
 					showDialog(Constants.DIALOG_LOGIN);
 				}
 			};
 		}
+		@Override
 		public OnClickListener getLinkOnClickListener(ThingInfo thingInfo, boolean useExternalBrowser) {
 			final ThingInfo info = thingInfo;
 			final boolean fUseExternalBrowser = useExternalBrowser;
 			return new OnClickListener() {
 				public void onClick(View v) {
-					dismissDialog(Constants.DIALOG_THREAD_CLICK);
+					removeDialog(Constants.DIALOG_THREAD_CLICK);
 					// Launch Intent to goto the URL
 					Common.launchBrowser(ProfileActivity.this, info.getUrl(),
 							Util.createThreadUri(info).toString(),
-							false, false, fUseExternalBrowser);
+							false, false, fUseExternalBrowser, mSettings.isSaveHistory());
 				}
 			};
 		}
+		@Override
 		public OnClickListener getCommentsOnClickListener(ThingInfo thingInfo) {
 			final ThingInfo info = thingInfo;
 			return new OnClickListener() {
 				public void onClick(View v) {
-					dismissDialog(Constants.DIALOG_THREAD_CLICK);
+					removeDialog(Constants.DIALOG_THREAD_CLICK);
 					// Launch an Intent for CommentsListActivity
 					CacheInfo.invalidateCachedThread(ProfileActivity.this);
 					Intent i = new Intent(ProfileActivity.this, CommentsListActivity.class);
@@ -1231,11 +1239,12 @@ public final class ProfileActivity extends ListActivity
 				}
 			};
 		}
+		@Override
 		public CompoundButton.OnCheckedChangeListener getVoteUpOnCheckedChangeListener(ThingInfo thingInfo) {
 			final ThingInfo info = thingInfo;
 			return new CompoundButton.OnCheckedChangeListener() {
 		    	public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-		    		dismissDialog(Constants.DIALOG_THREAD_CLICK);
+		    		removeDialog(Constants.DIALOG_THREAD_CLICK);
 			    	if (isChecked) {
 						new MyVoteTask(info, 1, info.getSubreddit()).execute();
 					} else {
@@ -1244,11 +1253,12 @@ public final class ProfileActivity extends ListActivity
 				}
 		    };
 		}
+		@Override
 		public CompoundButton.OnCheckedChangeListener getVoteDownOnCheckedChangeListener(ThingInfo thingInfo) {
 			final ThingInfo info = thingInfo;
 			return new CompoundButton.OnCheckedChangeListener() {
 		        public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-			    	dismissDialog(Constants.DIALOG_THREAD_CLICK);
+			    	removeDialog(Constants.DIALOG_THREAD_CLICK);
 					if (isChecked) {
 						new MyVoteTask(info, -1, info.getSubreddit()).execute();
 					} else {
@@ -1272,7 +1282,7 @@ public final class ProfileActivity extends ListActivity
     	state.putString(Constants.LAST_AFTER_KEY, mLastAfter);
     	state.putString(Constants.LAST_BEFORE_KEY, mLastBefore);
     	state.putInt(Constants.THREAD_LAST_COUNT_KEY, mLastCount);
-    	state.putStringArray(Constants.KARMA_KEY, mKarma);
+    	state.putIntArray(Constants.KARMA_KEY, mKarma);
     	state.putParcelable(Constants.VOTE_TARGET_THING_INFO_KEY, mVoteTargetThingInfo);
     }
     
@@ -1294,7 +1304,7 @@ public final class ProfileActivity extends ListActivity
         };
         for (int dialog : myDialogs) {
 	        try {
-	        	dismissDialog(dialog);
+	        	removeDialog(dialog);
 		    } catch (IllegalArgumentException e) {
 		    	// Ignore.
 		    }

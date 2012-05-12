@@ -24,13 +24,13 @@ import java.util.ArrayList;
 
 import org.codehaus.jackson.annotate.JsonAnySetter;
 
-import com.andrewshu.android.reddit.markdown.MarkdownURL;
-
-import android.graphics.drawable.Drawable;
+import android.graphics.Bitmap;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.Html;
 import android.text.SpannableString;
+
+import com.andrewshu.android.reddit.markdown.MarkdownURL;
 
 /**
  * Class representing a thread posting in reddit API.
@@ -87,7 +87,9 @@ public class ThingInfo implements Serializable, Parcelable {
 	transient private CharSequence mSpannedSelftext = null;
 	transient private CharSequence mSpannedBody = null;
 	transient private SpannableString mSSAuthor = null;
-	transient private Drawable mThumbnailDrawable = null;
+	
+	transient private Bitmap mThumbnailBitmap = null;
+	transient private Integer mThumbnailResource = null;
 	
 	private int mIndent = 0;
 	private String mReplyDraft = null;
@@ -219,8 +221,12 @@ public class ThingInfo implements Serializable, Parcelable {
 		return thumbnail;
 	}
 
-	public Drawable getThumbnailDrawable() {
-		return mThumbnailDrawable;
+	public Bitmap getThumbnailBitmap() {
+		return mThumbnailBitmap;
+	}
+	
+	public Integer getThumbnailResource() {
+		return mThumbnailResource;
 	}
 
 	public String getTitle() {
@@ -440,8 +446,12 @@ public class ThingInfo implements Serializable, Parcelable {
 		this.thumbnail = thumbnail;
 	}
 
-	public void setThumbnailDrawable(Drawable mThumbnailDrawable) {
-		this.mThumbnailDrawable = mThumbnailDrawable;
+	public void setThumbnailBitmap(Bitmap thumbnailBitmap) {
+		this.mThumbnailBitmap = thumbnailBitmap;
+	}
+	
+	public void setThumbnailResource(Integer thumbnailResource) {
+		this.mThumbnailResource = thumbnailResource;
 	}
 
 	public void setTitle(String title) {
@@ -511,46 +521,46 @@ public class ThingInfo implements Serializable, Parcelable {
 	}
 
 	private ThingInfo(Parcel in) {
-		author = (String) in.readValue(null);
-		body = (String) in.readValue(null);
-		body_html = (String) in.readValue(null);
-		context = (String) in.readValue(null);
-		created = in.readDouble();
-		created_utc = in.readDouble();
-		dest = (String) in.readValue(null);
-		domain = (String) in.readValue(null);
-		downs = in.readInt();
+		author        = (String) in.readValue(null);
+		body          = (String) in.readValue(null);
+		body_html     = (String) in.readValue(null);
+		context       = (String) in.readValue(null);
+		created       = in.readDouble();
+		created_utc   = in.readDouble();
+		dest          = (String) in.readValue(null);
+		domain        = (String) in.readValue(null);
+		downs         = in.readInt();
 		first_message = (Long) in.readValue(null);
-		id = (String) in.readValue(null);
-		link_id = (String) in.readValue(null);
-		name = (String) in.readValue(null);
-		num_comments = in.readInt();
-		parent_id = (String) in.readValue(null);
-		permalink = (String) in.readValue(null);
-		score = in.readInt();
-		selftext = (String) in.readValue(null);
+		id            = (String) in.readValue(null);
+		link_id       = (String) in.readValue(null);
+		name          = (String) in.readValue(null);
+		num_comments  = in.readInt();
+		parent_id     = (String) in.readValue(null);
+		permalink     = (String) in.readValue(null);
+		score         = in.readInt();
+		selftext      = (String) in.readValue(null);
 		selftext_html = (String) in.readValue(null);
-		subject = (String) in.readValue(null);
-		subreddit = (String) in.readValue(null);
-		subreddit_id = (String) in.readValue(null);
-		thumbnail = (String) in.readValue(null);
-		title = (String) in.readValue(null);
-		ups = in.readInt();
-		url = (String) in.readValue(null);
-		likes = (Boolean) in.readValue(null);
+		subject       = (String) in.readValue(null);
+		subreddit     = (String) in.readValue(null);
+		subreddit_id  = (String) in.readValue(null);
+		thumbnail     = (String) in.readValue(null);
+		title         = (String) in.readValue(null);
+		ups           = in.readInt();
+		url           = (String) in.readValue(null);
+		likes         = (Boolean) in.readValue(null);
 
 		boolean booleans[] = new boolean[10];
 		in.readBooleanArray(booleans);
-		clicked = booleans[0];
-		hidden = booleans[1];
-		is_self = booleans[2];
-		new_ = booleans[3];
-		over_18 = booleans[4];
-		saved = booleans[5];
-		was_comment = booleans[6];
+		clicked                        = booleans[0];
+		hidden                         = booleans[1];
+		is_self                        = booleans[2];
+		new_                           = booleans[3];
+		over_18                        = booleans[4];
+		saved                          = booleans[5];
+		was_comment                    = booleans[6];
 		mIsLoadMoreCommentsPlaceholder = booleans[7];
-		mIsHiddenCommentHead = booleans[8];
-		mIsHiddenCommentDescendant = booleans[9];
+		mIsHiddenCommentHead           = booleans[8];
+		mIsHiddenCommentDescendant     = booleans[9];
 	}
 
 	public static final Parcelable.Creator<ThingInfo> CREATOR
