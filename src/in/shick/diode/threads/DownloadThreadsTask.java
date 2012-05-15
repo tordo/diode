@@ -55,6 +55,7 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 	protected String mLastAfter = null;
 	protected String mLastBefore = null;
 	protected int mLastCount = 0;
+    protected RedditSettings mSettings = new RedditSettings();
 	
 	//the GET parameters to be passed when performing a search
 	//just get it to recognize the query first, get sort working later.
