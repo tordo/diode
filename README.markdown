@@ -13,6 +13,7 @@ Code](http://chart.apis.google.com/chart?cht=qr&chs=120x120&chl=market%3A%2F%2Fd
 Contributors
 ------------
 
+* tordo ( NSFW filter option )
 * veeti ( reuse bugfix for text user flair )
 * v00d00 ( text user flair )
 * ulfada
