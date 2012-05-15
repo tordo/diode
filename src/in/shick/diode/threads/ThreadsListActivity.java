@@ -95,18 +95,6 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-<<<<<<< HEAD
-import in.shick.diode.R;
-import in.shick.diode.comments.CommentsListActivity;
-import in.shick.diode.common.CacheInfo;
-import in.shick.diode.common.Common;
-import in.shick.diode.common.Constants;
-import in.shick.diode.common.RedditIsFunHttpClientFactory;
-import in.shick.diode.common.tasks.HideTask;
-import in.shick.diode.common.tasks.SaveTask;
-import in.shick.diode.common.tasks.VoteTask;
-import in.shick.diode.common.util.StringUtils;
-import in.shick.diode.common.util.Util;
 
 /**
  * Main Activity class representing a Subreddit, i.e., a ThreadsList.
@@ -1245,17 +1233,14 @@ public final class ThreadsListActivity extends ListActivity {
     	case android.R.id.home:
     		Common.goHome(this);
     		break;
-<<<<<<< HEAD
     	case R.id.filter_menu_id:
     		Intent in = new Intent(this,FilterConfigActivity.class);
     		startActivity(in);
     		return true;
-=======
     	case R.id.search:
         	startActivityForResult(new Intent(this, RedditSearchActivity.class), Constants.ACTIVITY_SEARCH_REDDIT);
     		break;
     		
->>>>>>> 892b57761ee82fb19878b323f2d74a386d4959bc
     	default:
     		throw new IllegalArgumentException("Unexpected action value "+item.getItemId());
     	}
