@@ -9,39 +9,30 @@ import android.content.Context;
 import android.content.Intent;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
-import android.view.LayoutInflater;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MenuItem.OnMenuItemClickListener;
 import android.view.View;	
 import android.view.View.OnCreateContextMenuListener;
-import android.view.View.OnLongClickListener;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.BaseAdapter;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
-import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
+
+/** FilterAdapter class
+ * Display a filter as a row in a list
+ * @author tordo
+ *
+ */
 public class FilterAdapter extends ArrayAdapter<SubredditFilter>  {
 	public FilterAdapter(Context ctx, ArrayList<SubredditFilter> filters) {
 		super(ctx,0,filters);
 	}
-	
-	@Override
-	public int getViewTypeCount() {
-		return 1;
-	}
-	@Override
-	public int getItemViewType(int pos) {
-		if(pos == ListView.INVALID_POSITION) {
-			return ArrayAdapter.IGNORE_ITEM_VIEW_TYPE;
-		}
-		return 0;
-	}
+
 
 	@Override
 	public View getView(final int itemId, View arg1, ViewGroup arg2) {

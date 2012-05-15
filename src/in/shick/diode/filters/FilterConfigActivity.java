@@ -14,10 +14,18 @@ import android.widget.ListView;
 
 
 
+/**
+ * Activity for configuring filters
+ * @author tordo
+ *
+ */
 public class FilterConfigActivity extends ListActivity {
-	ListView m_listview;
+	
+	/** The filters we are displaying */
 	ArrayList<SubredditFilter> m_filters;
+	/** The adapter showing our filters */
 	FilterAdapter m_adapter;
+	/** Reddit settings*/
 	RedditSettings m_settings;
 	
 	
@@ -27,7 +35,6 @@ public class FilterConfigActivity extends ListActivity {
 		
 		m_settings = new RedditSettings();
 		m_settings.loadRedditPreferences(this,null);
-		m_listview = getListView();
 	}
 	
 	@Override
