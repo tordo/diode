@@ -52,10 +52,7 @@ public class Constants {
 		= "(?:/r/([^/]+)/comments|/comments|/tb)/([^/]+)(?:/?$|/[^/]+/([a-zA-Z0-9]+)?)?";
 	public static final String REDDIT_PATH_PATTERN_STRING = "(?:/r/([^/]+))?/?$";
 	public static final String USER_PATH_PATTERN_STRING = "/user/([^/]+)/?$";
-	
-	//I realize this is probably not the best way to handle this, but it's a start
-	//have SearchActivity return a string that contains 2 tokens, "search" and the query string
-	public static final String REDDIT_SEARCH_PATTERN_STRING = "[^/]+"; //^[a-zA-z0-9]+$
+
 	
 	public static final String COMMENT_KIND = "t1";
 	public static final String THREAD_KIND = "t3";
@@ -152,6 +149,8 @@ public class Constants {
     public static final String FRONTPAGE_STRING = "reddit front page";
     
     public static final String REDDIT_SEARCH_STRING = "search";
+    public static final String DEFAULT_REDDIT_SEARCH = "bacon";
+    public static final String DEFAULT_SEARCH_SORT = "relevant";
     
     public static final String HAVE_MAIL_TICKER = "reddit mail";
     public static final String HAVE_MAIL_TITLE = "diode";

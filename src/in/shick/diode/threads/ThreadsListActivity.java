@@ -105,7 +105,6 @@ public final class ThreadsListActivity extends ListActivity {
 
 	private static final String TAG = "ThreadsListActivity";
 	private final Pattern REDDIT_PATH_PATTERN = Pattern.compile(Constants.REDDIT_PATH_PATTERN_STRING);
-	private final Pattern REDDIT_SEARCH_PATTERN = Pattern.compile(Constants.REDDIT_SEARCH_PATTERN_STRING);
 	
 	private final ObjectMapper mObjectMapper = Common.getObjectMapper();
 
@@ -142,13 +141,12 @@ public final class ThreadsListActivity extends ListActivity {
     private String mSortByUrlExtra = "";
     private String mJumpToThreadId = null;
     // End navigation variables
-    private String mSearchQuery = null;
     
     // Menu
     private boolean mCanChord = false;
     
     //search query, so it can be displayed in the progress bar
-   // private String mSearchQuery;
+    private String mSearchQuery = null;
     
     
     /**
@@ -301,17 +299,11 @@ public final class ThreadsListActivity extends ListActivity {
     		break;
     	case Constants.ACTIVITY_SEARCH_REDDIT:
     		if(resultCode==Activity.RESULT_OK){
-    			//Toast.makeText(this, intent.getDataString(), Toast.LENGTH_LONG).show();
-    			//on a search, the activity returns a path like "/search/*query*" 
-    			//(unlike with subreddits, the activity needs to return 2 pieces of information)
-    			//this could be changed to just return the query, then use a bool flag passed
-    			//to the constructor to check whether we're searching
-    			Matcher redditContextMatcher = REDDIT_SEARCH_PATTERN.matcher(intent.getData().getPath());
-				redditContextMatcher.find();
-				String search = redditContextMatcher.group();
-				redditContextMatcher.find();
-				String query = redditContextMatcher.group();
-				new MyDownloadThreadsTask(search, query).execute();
+    			//changed it so each piece of data is passed separately as extras in the intent
+    			//rather than having to use regex to split apart a string
+    			//could probably do away with the "subreddit" field since we're
+    			//using a modified constructor anyways
+				new MyDownloadThreadsTask(intent.getExtras().getString("searchurl"), intent.getExtras().getString("query"),intent.getExtras().getString("sort")).execute();
     		}
     		break;
     	default:
@@ -345,11 +337,6 @@ public final class ThreadsListActivity extends ListActivity {
         //if the search button is pressed
         else if(keyCode == KeyEvent.KEYCODE_SEARCH){
         	//start activity
-        	//Context context = getApplicationContext();
-        	//sCharSequence text = "Search Button Pressed";
-        	//int duration = Toast.LENGTH_LONG;
-        	//Toast toast = Toast.makeText(this, text, duration);
-        	//toast.show();
         	startActivityForResult(new Intent(this, RedditSearchActivity.class), Constants.ACTIVITY_SEARCH_REDDIT);
         	return true;
         	
@@ -740,13 +727,13 @@ public final class ThreadsListActivity extends ListActivity {
 					subreddit);
 		}
     	
-    	public MyDownloadThreadsTask(String subreddit, String query) {
+    	public MyDownloadThreadsTask(String subreddit, String query, String sort) {
 			super(getApplicationContext(),
 					ThreadsListActivity.this.mClient,
 					ThreadsListActivity.this.mObjectMapper,
 					ThreadsListActivity.this.mSortByUrl,
 					ThreadsListActivity.this.mSortByUrlExtra,
-					subreddit, query);
+					subreddit, query, sort);
 		}
     	
     	public MyDownloadThreadsTask(String subreddit,

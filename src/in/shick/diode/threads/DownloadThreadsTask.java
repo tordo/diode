@@ -67,9 +67,10 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 	
 	public DownloadThreadsTask(Context context, HttpClient client, ObjectMapper om,
 			String sortByUrl, String sortByUrlExtra,
-			String subreddit, String query) { 
+			String subreddit, String query, String sort) { 
 		this(context, client, om, sortByUrl, sortByUrlExtra, subreddit, null, null, Constants.DEFAULT_THREAD_DOWNLOAD_LIMIT);
 		mSearchQuery = query;
+		mSortSearch = sort;
 	}
 
 	public DownloadThreadsTask(Context context, HttpClient client, ObjectMapper om,
@@ -113,7 +114,7 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 			//prepare a search query
 			else if(Constants.REDDIT_SEARCH_STRING.equals(mSubreddit)){
 				sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/search/").append(".json?q=")
-					.append(URLEncoder.encode(mSearchQuery, "utf8"));
+					.append(URLEncoder.encode(mSearchQuery, "utf8")).append("&sort=" + mSortSearch);
 			}
 			else {
     			sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/r/")
