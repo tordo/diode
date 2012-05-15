@@ -1232,6 +1232,9 @@ public final class ThreadsListActivity extends ListActivity {
     	case android.R.id.home:
     		Common.goHome(this);
     		break;
+    	case R.id.search:
+        	startActivityForResult(new Intent(this, RedditSearchActivity.class), Constants.ACTIVITY_SEARCH_REDDIT);
+    		break;
     		
     	default:
     		throw new IllegalArgumentException("Unexpected action value "+item.getItemId());

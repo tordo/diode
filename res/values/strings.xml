@@ -25,6 +25,7 @@
     <string name="user_agent">Diode for Reddit (Android) %s</string>
  
     <!-- Searches -->
+    <string name="menu_search">[beta] Search</string>
     <string name="search_title_prefix">[beta] Search: </string>
     <string name="search_hint">[beta] Search reddit</string>
     <string name="search_sort_label">Sort results by </string>
