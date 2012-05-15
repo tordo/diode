@@ -17,6 +17,7 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
 
+
 import in.shick.diode.common.CacheInfo;
 import in.shick.diode.common.Common;
 import in.shick.diode.common.Constants;
@@ -26,6 +27,10 @@ import in.shick.diode.things.Listing;
 import in.shick.diode.things.ListingData;
 import in.shick.diode.things.ThingInfo;
 import in.shick.diode.things.ThingListing;
+import in.shick.diode.settings.RedditSettings;
+
+
+
 
 /**
  * Given a subreddit name string, starts the threadlist-download-thread going.
@@ -50,7 +55,7 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 	protected String mLastAfter = null;
 	protected String mLastBefore = null;
 	protected int mLastCount = 0;
-	
+	protected RedditSettings mSettings = new RedditSettings();
 	protected String mUserError = "Error retrieving subreddit info.";
 	// Progress bar
 	protected long mContentLength = 0;
@@ -68,6 +73,7 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 	public DownloadThreadsTask(Context context, HttpClient client, ObjectMapper om,
 			String sortByUrl, String sortByUrlExtra,
 			String subreddit, String after, String before, int count) {
+        mSettings.loadRedditPreferences(context, null);
 		mContext = context;
 		mClient = client;
 		mOm = om;
@@ -239,7 +245,9 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 				if (Constants.THREAD_KIND.equals(tiContainer.getKind())) {
 					ThingInfo ti = tiContainer.getData();
 					ti.setClicked(Common.isClicked(mContext, ti.getUrl()));
-					mThingInfos.add(ti);
+					if(mSettings.getShowNSFW() || !ti.isOver_18()) {
+						mThingInfos.add(ti);
+					}
 				}
 			}
 		} catch (Exception ex) {
