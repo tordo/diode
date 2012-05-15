@@ -16,6 +16,8 @@ public class SubredditFilter
 	protected Pattern m_pattern;
 	/** The name of the subreddit to match */
 	protected String m_subreddit;
+	/** The pattern string */
+	protected String m_patternstring;
 	/** Whether or not this filter is enabled */
 	protected boolean m_enabled;
 	/** Delimiter for to/fromString */
@@ -48,7 +50,17 @@ public class SubredditFilter
 	 */
 	public void setPattern(String pattern)
 	{
-		setPattern(Pattern.compile(pattern));
+		m_patternstring = pattern;
+		setPattern(Pattern.compile(Pattern.quote(pattern)));
+	}
+	
+	/**
+	 * 
+	 * @return The unescaped pattern string
+	 */
+	public String getPatternString() 
+	{
+		return m_patternstring;
 	}
 	/** 
 	 * Set pattern to exclude
@@ -112,7 +124,7 @@ public class SubredditFilter
 	 * @return serialized filter, can be parsed with fromString
 	 */
 	public String toString() {
-		return m_name + DELIM + m_subreddit + DELIM + m_enabled + DELIM + m_pattern.pattern(); 		
+		return m_name + DELIM + m_subreddit + DELIM + m_enabled + DELIM + m_patternstring;	
 	}
 	
 	/** Build a SubredditFilter from string */
