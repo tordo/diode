@@ -204,7 +204,7 @@ public final class ThreadsListActivity extends ListActivity {
 		    	if (Constants.FRONTPAGE_STRING.equals(mSubreddit))
 		    		setTitle("reddit.com: what's new online!");
 		    	else if(Constants.REDDIT_SEARCH_STRING.equals(mSubreddit))
-		    		setTitle("Search: " + mSearchQuery);
+		    		setTitle(getResources().getString(R.string.search_title_prefix) + mSearchQuery);
 		    	else
 		    		setTitle("/r/" + mSubreddit.trim());
 		    }
@@ -783,7 +783,7 @@ public final class ThreadsListActivity extends ListActivity {
 	    	if (Constants.FRONTPAGE_STRING.equals(mSubreddit))
 	    		setTitle("reddit.com: what's new online!");
 	    	else if(Constants.REDDIT_SEARCH_STRING.equals(mSubreddit))
-	    		setTitle("Search: " + mSearchQuery);
+	    		setTitle(getResources().getString(R.string.search_title_prefix) + mSearchQuery);
 	    	else
 	    		setTitle("/r/" + mSubreddit.trim());
     	}
