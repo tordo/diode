@@ -19,6 +19,32 @@
 
 package in.shick.diode.threads;
 
+import in.shick.diode.R;
+import in.shick.diode.comments.CommentsListActivity;
+import in.shick.diode.common.CacheInfo;
+import in.shick.diode.common.Common;
+import in.shick.diode.common.Constants;
+import in.shick.diode.common.RedditIsFunHttpClientFactory;
+import in.shick.diode.common.tasks.HideTask;
+import in.shick.diode.common.tasks.SaveTask;
+import in.shick.diode.common.tasks.VoteTask;
+import in.shick.diode.common.util.StringUtils;
+import in.shick.diode.common.util.Util;
+import in.shick.diode.login.LoginDialog;
+import in.shick.diode.login.LoginTask;
+import in.shick.diode.mail.InboxActivity;
+import in.shick.diode.mail.PeekEnvelopeTask;
+import in.shick.diode.reddits.PickSubredditActivity;
+import in.shick.diode.reddits.SubscribeTask;
+import in.shick.diode.reddits.UnsubscribeTask;
+import in.shick.diode.search.RedditSearchActivity;
+import in.shick.diode.settings.RedditPreferencesPage;
+import in.shick.diode.settings.RedditSettings;
+import in.shick.diode.submit.SubmitLinkActivity;
+import in.shick.diode.things.ThingInfo;
+import in.shick.diode.threads.ShowThumbnailsTask.ThumbnailLoadAction;
+import in.shick.diode.user.ProfileActivity;
+
 import java.beans.PropertyChangeEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,31 +94,6 @@ import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import in.shick.diode.R;
-import in.shick.diode.comments.CommentsListActivity;
-import in.shick.diode.common.CacheInfo;
-import in.shick.diode.common.Common;
-import in.shick.diode.common.Constants;
-import in.shick.diode.common.RedditIsFunHttpClientFactory;
-import in.shick.diode.common.tasks.HideTask;
-import in.shick.diode.common.tasks.SaveTask;
-import in.shick.diode.common.tasks.VoteTask;
-import in.shick.diode.common.util.StringUtils;
-import in.shick.diode.common.util.Util;
-import in.shick.diode.login.LoginDialog;
-import in.shick.diode.login.LoginTask;
-import in.shick.diode.mail.InboxActivity;
-import in.shick.diode.mail.PeekEnvelopeTask;
-import in.shick.diode.reddits.PickSubredditActivity;
-import in.shick.diode.reddits.SubscribeTask;
-import in.shick.diode.reddits.UnsubscribeTask;
-import in.shick.diode.settings.RedditPreferencesPage;
-import in.shick.diode.settings.RedditSettings;
-import in.shick.diode.submit.SubmitLinkActivity;
-import in.shick.diode.things.ThingInfo;
-import in.shick.diode.threads.ShowThumbnailsTask.ThumbnailLoadAction;
-import in.shick.diode.user.ProfileActivity;
 
 /**
  * Main Activity class representing a Subreddit, i.e., a ThreadsList.
@@ -144,6 +145,9 @@ public final class ThreadsListActivity extends ListActivity {
     // Menu
     private boolean mCanChord = false;
     
+    //search query, so it can be displayed in the progress bar
+    private String mSearchQuery = null;
+    
     
     /**
      * Called when the activity starts up. Do activity initialization
@@ -179,6 +183,7 @@ public final class ThreadsListActivity extends ListActivity {
 	        mLastCount = savedInstanceState.getInt(Constants.THREAD_LAST_COUNT_KEY);
 	        mSortByUrl = savedInstanceState.getString(Constants.ThreadsSort.SORT_BY_KEY);
 		    mJumpToThreadId = savedInstanceState.getString(Constants.JUMP_TO_THREAD_ID_KEY);
+		    mSearchQuery = savedInstanceState.getString(Constants.QUERY_KEY);
 		    mVoteTargetThing = savedInstanceState.getParcelable(Constants.VOTE_TARGET_THING_INFO_KEY);
 		    
 		    // try to restore mThreadsList using getLastNonConfigurationInstance()
@@ -198,6 +203,8 @@ public final class ThreadsListActivity extends ListActivity {
 		    	resetUI(new ThreadsListAdapter(this, mThreadsList));
 		    	if (Constants.FRONTPAGE_STRING.equals(mSubreddit))
 		    		setTitle("reddit.com: what's new online!");
+		    	else if(Constants.REDDIT_SEARCH_STRING.equals(mSubreddit))
+		    		setTitle("Search: " + mSearchQuery);
 		    	else
 		    		setTitle("/r/" + mSubreddit.trim());
 		    }
@@ -281,12 +288,22 @@ public final class ThreadsListActivity extends ListActivity {
     	super.onActivityResult(requestCode, resultCode, intent);
     	
     	switch(requestCode) {
+    	//add constant to specify search
     	case Constants.ACTIVITY_PICK_SUBREDDIT:
     		if (resultCode == Activity.RESULT_OK) {
     	    	Matcher redditContextMatcher = REDDIT_PATH_PATTERN.matcher(intent.getData().getPath());
     			if (redditContextMatcher.matches()) {
     				new MyDownloadThreadsTask(redditContextMatcher.group(1)).execute();
     			}
+    		}
+    		break;
+    	case Constants.ACTIVITY_SEARCH_REDDIT:
+    		if(resultCode==Activity.RESULT_OK){
+    			//changed it so each piece of data is passed separately as extras in the intent
+    			//rather than having to use regex to split apart a string
+    			//could probably do away with the "subreddit" field since we're
+    			//using a modified constructor anyways
+				new MyDownloadThreadsTask(intent.getExtras().getString("searchurl"), intent.getExtras().getString("query"),intent.getExtras().getString("sort")).execute();
     		}
     		break;
     	default:
@@ -316,6 +333,13 @@ public final class ThreadsListActivity extends ListActivity {
             .show();
 
             return true;
+        }
+        //if the search button is pressed
+        else if(keyCode == KeyEvent.KEYCODE_SEARCH){
+        	//start activity
+        	startActivityForResult(new Intent(this, RedditSearchActivity.class), Constants.ACTIVITY_SEARCH_REDDIT);
+        	return true;
+        	
         }
         else {
             return super.onKeyDown(keyCode, event);
@@ -703,6 +727,15 @@ public final class ThreadsListActivity extends ListActivity {
 					subreddit);
 		}
     	
+    	public MyDownloadThreadsTask(String subreddit, String query, String sort) {
+			super(getApplicationContext(),
+					ThreadsListActivity.this.mClient,
+					ThreadsListActivity.this.mObjectMapper,
+					ThreadsListActivity.this.mSortByUrl,
+					ThreadsListActivity.this.mSortByUrlExtra,
+					subreddit, query, sort);
+		}
+    	
     	public MyDownloadThreadsTask(String subreddit,
 				String after, String before, int count) {
 			super(getApplicationContext(),
@@ -717,6 +750,7 @@ public final class ThreadsListActivity extends ListActivity {
     	protected void saveState() {
 			mSettings.setModhash(mModhash);
 			ThreadsListActivity.this.mSubreddit = mSubreddit;
+			ThreadsListActivity.this.mSearchQuery = mSearchQuery;
 			ThreadsListActivity.this.mLastAfter = mLastAfter;
 			ThreadsListActivity.this.mLastBefore = mLastBefore;
 			ThreadsListActivity.this.mLastCount = mLastCount;
@@ -748,6 +782,8 @@ public final class ThreadsListActivity extends ListActivity {
     		
 	    	if (Constants.FRONTPAGE_STRING.equals(mSubreddit))
 	    		setTitle("reddit.com: what's new online!");
+	    	else if(Constants.REDDIT_SEARCH_STRING.equals(mSubreddit))
+	    		setTitle("Search: " + mSearchQuery);
 	    	else
 	    		setTitle("/r/" + mSubreddit.trim());
     	}
@@ -1501,6 +1537,7 @@ public final class ThreadsListActivity extends ListActivity {
     protected void onSaveInstanceState(Bundle state) {
     	super.onSaveInstanceState(state);
     	state.putString(Constants.SUBREDDIT_KEY, mSubreddit);
+    	state.putString(Constants.QUERY_KEY, mSearchQuery);
     	state.putString(Constants.ThreadsSort.SORT_BY_KEY, mSortByUrl);
     	state.putString(Constants.JUMP_TO_THREAD_ID_KEY, mJumpToThreadId);
     	state.putString(Constants.AFTER_KEY, mAfter);

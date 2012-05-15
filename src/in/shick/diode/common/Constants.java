@@ -52,6 +52,7 @@ public class Constants {
 		= "(?:/r/([^/]+)/comments|/comments|/tb)/([^/]+)(?:/?$|/[^/]+/([a-zA-Z0-9]+)?)?";
 	public static final String REDDIT_PATH_PATTERN_STRING = "(?:/r/([^/]+))?/?$";
 	public static final String USER_PATH_PATTERN_STRING = "/user/([^/]+)/?$";
+
 	
 	public static final String COMMENT_KIND = "t1";
 	public static final String THREAD_KIND = "t3";
@@ -67,6 +68,7 @@ public class Constants {
     // startActivityForResult request codes
     public static final int ACTIVITY_PICK_SUBREDDIT = 0;
     public static final int ACTIVITY_SUBMIT_LINK = 1;
+    public static final int ACTIVITY_SEARCH_REDDIT = 2;
     
     // notifications
     public static final int NOTIFICATION_HAVE_MAIL = 0;
@@ -146,6 +148,10 @@ public class Constants {
     
     public static final String FRONTPAGE_STRING = "reddit front page";
     
+    public static final String REDDIT_SEARCH_STRING = "search";
+    public static final String DEFAULT_REDDIT_SEARCH = "bacon";
+    public static final String DEFAULT_SEARCH_SORT = "relevant";
+    
     public static final String HAVE_MAIL_TICKER = "reddit mail";
     public static final String HAVE_MAIL_TITLE = "diode";
     public static final String HAVE_MAIL_TEXT = "You have reddit mail.";
@@ -170,6 +176,7 @@ public class Constants {
     public static final String USERNAME_KEY = "username";
     public static final String VOTE_TARGET_THING_INFO_KEY = "vote_target_thing_info";
     public static final String WHICH_INBOX_KEY = "which_inbox";
+    public static final String QUERY_KEY = "search_query";
     
     public static final String SUBMIT_KIND_LINK = "link";
     public static final String SUBMIT_KIND_SELF = "self";
@@ -320,4 +327,6 @@ public class Constants {
 	
     // A short HTML file returned by reddit, so we can get the modhash
     public static final String MODHASH_URL = REDDIT_BASE_URL + "/r";
+
+	
 }
