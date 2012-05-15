@@ -11,7 +11,7 @@
  *
  * "diode" is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTBILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -20,8 +20,27 @@
 
 <resources>
 
+    <string name="app_label">reddit is fun</string>
     <string name="app_name">Diode</string>
     <string name="user_agent">Diode for Reddit (Android) %s</string>
+ 
+    <!-- Searches -->
+    <string name="menu_search">[beta] Search</string>
+    <string name="search_title_prefix">[beta] Search: </string>
+    <string name="search_hint">[beta] Search reddit</string>
+    <string name="search_sort_label">Sort results by </string>
+ 	<string-array name="search_results_sorting">
+        <item>relevant</item>
+        <item>new</item>
+        <item>top</item>
+    </string-array>
+    <string name="search_tips_text">reddit:\'{name}\' find things posted in {name} only
+        							author:\'{username}\' return things submitted by {username} only
+									site:\'{domain}\' get links to pages on {domain} only
+									url:\'{text}\' search for {text} in url
+									selftext:\'{text}\' search for {text} in self post contents
+									is_self:{1|0} include (1) or exclude (0) self posts over18:{1|0} include (1) or exclude (0) results tagged NSFW</string>
+    
     
     <string name="yes">Yes</string>
     <string name="no">No</string>
@@ -232,6 +251,7 @@
    	
    	<string name="pref_load_thumbnails">Show thumbnails</string>
    	
+	<string name="search_button">Search</string>
     <string name="pref_load_thumbnails_only_wifi">Only on WiFi</string>
     <string name="pref_thumbnail_category">Thumbnail Settings</string>
     
@@ -248,6 +268,5 @@
     <string name="subreddit_name">Subreddit name</string>
     <string name="filter_text">Filter text</string>
     <string name="new_filter">New filter</string>
-    
     
 </resources>

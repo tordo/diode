@@ -3,6 +3,7 @@ package in.shick.diode.threads;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 
 import org.apache.http.Header;
@@ -16,7 +17,6 @@ import org.codehaus.jackson.map.ObjectMapper;
 import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
-
 
 import in.shick.diode.common.CacheInfo;
 import in.shick.diode.common.Common;
@@ -56,7 +56,13 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 	protected String mLastAfter = null;
 	protected String mLastBefore = null;
 	protected int mLastCount = 0;
-	protected RedditSettings mSettings = new RedditSettings();
+    protected RedditSettings mSettings = new RedditSettings();
+	
+	//the GET parameters to be passed when performing a search
+	//just get it to recognize the query first, get sort working later.
+	protected String mSearchQuery;
+	protected String mSortSearch; //not implemented yet
+	
 	protected String mUserError = "Error retrieving subreddit info.";
 	
 	protected RedditFilterEngine mFilterEngine;
@@ -67,6 +73,14 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 	protected ArrayList<ThingInfo> mThingInfos = new ArrayList<ThingInfo>();
 	protected String mModhash = null;
 	
+	public DownloadThreadsTask(Context context, HttpClient client, ObjectMapper om,
+			String sortByUrl, String sortByUrlExtra,
+			String subreddit, String query, String sort) { 
+		this(context, client, om, sortByUrl, sortByUrlExtra, subreddit, null, null, Constants.DEFAULT_THREAD_DOWNLOAD_LIMIT);
+		mSearchQuery = query;
+		mSortSearch = sort;
+	}
+
 	public DownloadThreadsTask(Context context, HttpClient client, ObjectMapper om,
 			String sortByUrl, String sortByUrlExtra,
 			String subreddit) {
@@ -107,7 +121,13 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 			if (Constants.FRONTPAGE_STRING.equals(mSubreddit)) {
     			sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/").append(mSortByUrl)
     				.append(".json?").append(mSortByUrlExtra).append("&");
-    		} else {
+    		} 
+			//prepare a search query
+			else if(Constants.REDDIT_SEARCH_STRING.equals(mSubreddit)){
+				sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/search/").append(".json?q=")
+					.append(URLEncoder.encode(mSearchQuery, "utf8")).append("&sort=" + mSortSearch);
+			}
+			else {
     			sb = new StringBuilder(Constants.REDDIT_BASE_URL + "/r/")
         			.append(mSubreddit.toString().trim())
         			.append("/").append(mSortByUrl).append(".json?")
@@ -128,6 +148,11 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
     		}
     		
     		url = sb.toString();
+        	/*CharSequence text = (CharSequence)url;
+        	int duration = Toast.LENGTH_LONG;
+        	Toast toast = Toast.makeText(mContext, text, duration);
+        	toast.show();*/
+    		//https://pay.reddit.com/.json?&
     		if (Constants.LOGGING) Log.d(TAG, "url=" + url);
 
     		InputStream in = null;

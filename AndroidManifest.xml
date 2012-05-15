@@ -20,8 +20,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
       package="in.shick.diode"
       
-      android:versionCode="3"
-      android:versionName="1.0.2"
+      android:versionCode="4"
+      android:versionName="1.0.3"
       android:installLocation="auto"
       >
 
@@ -92,6 +92,12 @@
 	              android:hardwareAccelerated="true">
 	    </activity>
 	    <service android:name=".mail.EnvelopeService" android:label="@string/pref_mail_notification_service"></service>
+
+		<activity android:name=".search.RedditSearchActivity">
+	        <intent-filter>
+	            <action android:name="android.intent.action.SEARCH"></action>
+	        </intent-filter>
+	    </activity>
 	    
 	    <receiver android:name=".mail.BootAlarmSetter">
             <intent-filter>

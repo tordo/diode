@@ -3,10 +3,8 @@ Diode
 
 Android app to read reddit.com. Forked by Michael Shick to keep a GPL version in the Market. Original code by Andrew Shu (talklittle). [Licensed under GPLv3][license].
 
-Android Market QR Codes
------------------------
-
-Free
+Android Market QR Code
+----------------------
 
 ![Diode QR
 Code](http://chart.apis.google.com/chart?cht=qr&chs=120x120&chl=market%3A%2F%2Fdetails%3Fid%3Din.shick.diode
@@ -15,8 +13,10 @@ Code](http://chart.apis.google.com/chart?cht=qr&chs=120x120&chl=market%3A%2F%2Fd
 Contributors
 ------------
 
-* veeti
-* v00d00
+* primehunter326 ( search! )
+* tordo ( NSFW filter option )
+* veeti ( reuse bugfix for text user flair )
+* v00d00 ( text user flair )
 * ulfada
 * choofins
 * jc4p
