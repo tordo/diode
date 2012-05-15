@@ -1,7 +1,6 @@
 package in.shick.diode.filters;
 
 import java.util.ArrayList;
-import java.util.regex.Pattern;
 
 import in.shick.diode.R;
 import in.shick.diode.settings.RedditSettings;

@@ -18,7 +18,6 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
-import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
@@ -37,19 +36,26 @@ public class FilterAdapter extends ArrayAdapter<SubredditFilter>  {
 	@Override
 	public View getView(final int itemId, View arg1, ViewGroup arg2) {
 		View view;
+		
+		// Re-use old view if it exists
 		if(arg1 == null) {
 			view = View.inflate(getContext(), R.layout.config_filter_list,null);
 		}
 		else {
 			view = arg1;
 		}
+		
+		// Get ToggleButton and TextView
 		ToggleButton b = (ToggleButton)view.findViewById(R.id.enabled);
 		TextView t = (TextView)view.findViewById(R.id.name);
 		
+		// Get the filter we're displaying
 		SubredditFilter filter = getItem(itemId);
 		
 		b.setChecked(filter.isEnabled());
 		t.setText(filter.getName());
+		
+		
 		b.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 			
 			@Override
@@ -57,7 +63,7 @@ public class FilterAdapter extends ArrayAdapter<SubredditFilter>  {
 				getItem(itemId).setEnabled(isChecked);			
 			}
 		});
-		
+		// Add context menu to view
 		view.setOnCreateContextMenuListener(new OnCreateContextMenuListener() {
 
 			@Override
@@ -66,9 +72,9 @@ public class FilterAdapter extends ArrayAdapter<SubredditFilter>  {
 				
 				MenuInflater m = new MenuInflater(getContext());
 				m.inflate(R.menu.config_filter_context_menu, arg0);
+			
+				// Delete option
 				MenuItem item = arg0.getItem(0);
-				
-				
 				item.setOnMenuItemClickListener(new OnMenuItemClickListener() {
 					
 					@Override
@@ -78,6 +84,7 @@ public class FilterAdapter extends ArrayAdapter<SubredditFilter>  {
 					}
 				});
 				
+				// Edit option
 				item = arg0.getItem(1);
 				Intent i = new Intent(getContext(),FilterEditActivity.class);
 				i.putExtra(FilterEditActivity.INTENT_FILTERID,itemId);
@@ -85,7 +92,6 @@ public class FilterAdapter extends ArrayAdapter<SubredditFilter>  {
 			}
 			
 		});
-		
 		return view;
 	}
 
