@@ -241,6 +241,7 @@
     <string name="vote_down_arrow_content_description">downvote arrow</string>
     <string name="thumbnail_content_description">thumbnail (click to view link)</string>
     <string name="show_nsfw">Show NSFW Links</string>
+    <string name="add">Add</string>
     
     
 </resources>

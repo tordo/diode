@@ -23,6 +23,7 @@ import in.shick.diode.common.Common;
 import in.shick.diode.common.Constants;
 import in.shick.diode.common.ProgressInputStream;
 import in.shick.diode.common.util.StringUtils;
+import in.shick.diode.filters.RedditFilterEngine;
 import in.shick.diode.things.Listing;
 import in.shick.diode.things.ListingData;
 import in.shick.diode.things.ThingInfo;
@@ -57,6 +58,8 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 	protected int mLastCount = 0;
 	protected RedditSettings mSettings = new RedditSettings();
 	protected String mUserError = "Error retrieving subreddit info.";
+	
+	protected RedditFilterEngine mFilterEngine;
 	// Progress bar
 	protected long mContentLength = 0;
 	
@@ -87,6 +90,8 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 		mAfter = after;
 		mBefore = before;
 		mCount = count;
+		mFilterEngine = new RedditFilterEngine(mContext);
+		mFilterEngine.initialize();
 	}
 	
 	public Boolean doInBackground(Void... zzz) {
@@ -245,7 +250,7 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 				if (Constants.THREAD_KIND.equals(tiContainer.getKind())) {
 					ThingInfo ti = tiContainer.getData();
 					ti.setClicked(Common.isClicked(mContext, ti.getUrl()));
-					if(mSettings.getShowNSFW() || !ti.isOver_18()) {
+					if((mSettings.getShowNSFW() || !ti.isOver_18()) && !mFilterEngine.isFiltered(ti)) {
 						mThingInfos.add(ti);
 					}
 				}

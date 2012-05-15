@@ -80,6 +80,7 @@ import in.shick.diode.common.tasks.SaveTask;
 import in.shick.diode.common.tasks.VoteTask;
 import in.shick.diode.common.util.StringUtils;
 import in.shick.diode.common.util.Util;
+import in.shick.diode.filters.FilterConfigActivity;
 import in.shick.diode.login.LoginDialog;
 import in.shick.diode.login.LoginTask;
 import in.shick.diode.mail.InboxActivity;
@@ -1035,7 +1036,7 @@ public final class ThreadsListActivity extends ListActivity {
     		i.setData(Util.createProfileUri(_item.getAuthor()));
     		startActivity(i);
     		return true;
-    		
+    
 		default:
 			return super.onContextItemSelected(item);
 		}
@@ -1196,7 +1197,10 @@ public final class ThreadsListActivity extends ListActivity {
     	case android.R.id.home:
     		Common.goHome(this);
     		break;
-    		
+    	case R.id.filter_menu_id:
+    		Intent in = new Intent(this,FilterConfigActivity.class);
+    		startActivity(in);
+    		return true;
     	default:
     		throw new IllegalArgumentException("Unexpected action value "+item.getItemId());
     	}

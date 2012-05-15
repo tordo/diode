@@ -19,7 +19,10 @@
 
 package in.shick.diode.settings;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.cookie.Cookie;
@@ -36,6 +39,7 @@ import in.shick.diode.common.Constants;
 import in.shick.diode.common.RedditIsFunHttpClientFactory;
 import in.shick.diode.common.util.StringUtils;
 import in.shick.diode.common.util.Util;
+import in.shick.diode.filters.SubredditFilter;
 
 /**
  * Common settings
@@ -70,6 +74,7 @@ public class RedditSettings {
 	private String mailNotificationStyle = Constants.PREF_MAIL_NOTIFICATION_STYLE_DEFAULT;
 	private String mailNotificationService = Constants.PREF_MAIL_NOTIFICATION_SERVICE_OFF;
 	
+	private ArrayList<SubredditFilter> filters = new ArrayList<SubredditFilter>();
 	
 	
 	//
@@ -168,12 +173,15 @@ public class RedditSettings {
     	editor.putString(Constants.PREF_MAIL_NOTIFICATION_SERVICE, this.mailNotificationService);
     	
     	// Show NSFW
-    	
     	editor.putBoolean(Constants.PREF_SHOW_NSFW, this.showNSFW);
+    	
+    	// Filters
+    	editor.putStringSet(Constants.PREF_REDDIT_FILTERS, getFilterStringSet());
     	editor.commit();
     }
     
-    public void loadRedditPreferences(Context context, HttpClient client) {
+    
+	public void loadRedditPreferences(Context context, HttpClient client) {
         // Session
     	SharedPreferences sessionPrefs = PreferenceManager.getDefaultSharedPreferences(context);
     	this.setUsername(sessionPrefs.getString("username", null));
@@ -244,10 +252,13 @@ public class RedditSettings {
         // Notifications
         this.setMailNotificationStyle(sessionPrefs.getString(Constants.PREF_MAIL_NOTIFICATION_STYLE, Constants.PREF_MAIL_NOTIFICATION_STYLE_DEFAULT));
         this.setMailNotificationService(sessionPrefs.getString(Constants.PREF_MAIL_NOTIFICATION_SERVICE, Constants.PREF_MAIL_NOTIFICATION_SERVICE_OFF));
+        this.setFilters(sessionPrefs.getStringSet(Constants.PREF_REDDIT_FILTERS, null));
         
     }
     
-    public int getDialogTheme() {
+    
+
+	public int getDialogTheme() {
     	if (Util.isLightTheme(theme))
     		return R.style.Reddit_Light_Dialog;
     	else
@@ -406,4 +417,34 @@ public class RedditSettings {
 	public void setShowNSFW(boolean b){
 		this.showNSFW = b;
 	}
+	private void setFilters(Set<String> stringSet) {
+    	filters = parseFilterSet(stringSet);
+	}
+	public void setFilters(ArrayList<SubredditFilter> f)
+	{
+		filters = f; 
+	}
+	public ArrayList<SubredditFilter> getFilters() {
+		return filters;
+	}
+	
+    private Set<String> getFilterStringSet() {
+    	
+    	HashSet<String> ret = new HashSet<String>();
+     	
+    	for(SubredditFilter s: filters)
+    	{
+    		ret.add(s.toString());
+    	}
+    	return ret;
+	}
+    private ArrayList<SubredditFilter> parseFilterSet(Set<String> set) {
+    	ArrayList<SubredditFilter> ret = new ArrayList<SubredditFilter>();
+    	if(set == null) return ret;
+    	for(String s: set) 
+    	{
+    		ret.add(SubredditFilter.fromString(s));
+    	}
+    	return ret;
+    }
 }

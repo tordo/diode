@@ -312,6 +312,7 @@ public class Constants {
     public static final String PREF_MAIL_NOTIFICATION_SERVICE_1DAY = "MAIL_NOTIFICATION_SERVICE_1DAY";
     public static final String PREF_SHOW_NSFW = "SHOW_NSFW";
     public static final boolean PREF_SHOW_NSFW_DEFAULT = false;
+    public static final String PREF_REDDIT_FILTERS = "REDDIT_FILTERS";
     
     // Reddit's base URL, without trailing slash
     public static final String REDDIT_BASE_URL = "http://www.reddit.com";
