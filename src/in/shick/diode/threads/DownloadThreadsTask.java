@@ -105,7 +105,6 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
 		mBefore = before;
 		mCount = count;
 		mFilterEngine = new RedditFilterEngine(mContext);
-		mFilterEngine.initialize();
 	}
 	
 	public Boolean doInBackground(Void... zzz) {

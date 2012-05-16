@@ -18,7 +18,8 @@ import android.view.MenuItem;
  * @author tordo
  *
  */
-public class FilterListActivity extends ListActivity {
+public class FilterListActivity extends ListActivity 
+{
 	
 	/** The filters we are displaying */
 	ArrayList<SubredditFilter> m_filters;
@@ -27,9 +28,9 @@ public class FilterListActivity extends ListActivity {
 	/** Reddit settings*/
 	RedditSettings m_settings;
 	
-	
 	@Override
-	public void onCreate(Bundle b) {
+	public void onCreate(Bundle b) 
+	{
 		super.onCreate(b);
 		
 		m_settings = new RedditSettings();
@@ -37,14 +38,17 @@ public class FilterListActivity extends ListActivity {
 	}
 	
 	@Override
-	public void onPause() {
+	public void onPause() 
+	{
 		// Save filters on pause
 		m_settings.setFilters(m_filters);
 		m_settings.saveRedditPreferences(this);
 		super.onPause();
 	}
+	
 	@Override
-	public void onResume() {
+	public void onResume() 
+	{
 		// Re-load filters on resume (i.e. after editing)
 		m_settings.loadRedditPreferences(this,null);
 		m_filters = m_settings.getFilters();
@@ -55,14 +59,16 @@ public class FilterListActivity extends ListActivity {
 	}
 	
 	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
+	public boolean onCreateOptionsMenu(Menu menu) 
+	{
 		MenuInflater m = getMenuInflater();
 		m.inflate(R.menu.filter_options_menu,menu);
 		
 		return true;
 	}
 	
-	public boolean onOptionsItemSelected(MenuItem item) {
+	public boolean onOptionsItemSelected(MenuItem item) 
+	{
 		switch(item.getItemId())
 		{
 		case R.id.add_filter:

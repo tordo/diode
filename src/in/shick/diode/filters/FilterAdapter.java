@@ -27,8 +27,10 @@ import android.widget.ToggleButton;
  * @author tordo
  *
  */
-public class FilterAdapter extends ArrayAdapter<SubredditFilter>  {
-	public FilterAdapter(Context ctx, ArrayList<SubredditFilter> filters) {
+public class FilterAdapter extends ArrayAdapter<SubredditFilter>
+{
+	public FilterAdapter(Context ctx, ArrayList<SubredditFilter> filters) 
+	{
 		super(ctx,0,filters);
 	}
 
@@ -47,17 +49,19 @@ public class FilterAdapter extends ArrayAdapter<SubredditFilter>  {
 		}
 		else return superCount;
 	}
-	
-	
+
 	@Override
-	public View getView(final int itemId, View arg1, ViewGroup arg2) {
+	public View getView(final int itemId, View arg1, ViewGroup arg2) 
+	{
 		View view;
 		
 		// Re-use old view if it exists
-		if(arg1 == null) {
+		if(arg1 == null) 
+		{
 			view = View.inflate(getContext(), R.layout.config_filter_list,null);
 		}
-		else {
+		else 
+		{
 			view = arg1;
 		}
 		
@@ -82,29 +86,35 @@ public class FilterAdapter extends ArrayAdapter<SubredditFilter>  {
 		t.setText(filter.getName());
 		
 		// Make the toggle button do its job
-		b.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+		b.setOnCheckedChangeListener(new OnCheckedChangeListener() 
+		{
 			
 			@Override
-			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) 
+			{
 				getItem(itemId).setEnabled(isChecked);			
 			}
 		});
 		// Add context menu to view
-		view.setOnCreateContextMenuListener(new OnCreateContextMenuListener() {
+		view.setOnCreateContextMenuListener(new OnCreateContextMenuListener() 
+		{
 
 			@Override
 			public void onCreateContextMenu(ContextMenu arg0, View arg1,
-					ContextMenuInfo arg2) {
+					ContextMenuInfo arg2) 
+			{
 				
 				MenuInflater m = new MenuInflater(getContext());
 				m.inflate(R.menu.config_filter_context_menu, arg0);
 			
 				// Delete option
 				MenuItem item = arg0.getItem(0);
-				item.setOnMenuItemClickListener(new OnMenuItemClickListener() {
+				item.setOnMenuItemClickListener(new OnMenuItemClickListener() 
+				{
 					
 					@Override
-					public boolean onMenuItemClick(MenuItem item) {
+					public boolean onMenuItemClick(MenuItem item) 
+					{
 						FilterAdapter.this.remove(getItem(itemId));
 						return true;
 					}

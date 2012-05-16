@@ -28,6 +28,7 @@ public class RedditFilterEngine
 	public RedditFilterEngine(Context c) 
 	{
 		setContext(c);
+		initialize();
 	}
 	
 	/** 
@@ -39,16 +40,18 @@ public class RedditFilterEngine
 		m_context = c;
 	}
 	
-	/** Initialize filters
+	/** 
+	 * Initialize filters
 	 * Pull filters from RedditPreferences
 	 */
-	public void initialize()
+	protected void initialize()
 	{
 		RedditSettings s = new RedditSettings();
 		s.loadRedditPreferences(m_context, null);
 		m_filters = s.getFilters();
 		
 	}
+	
 	/**
 	 * The big fat filtering method. This method checks if the supplied ThingInfo (what a peculiar name btw)
 	 * should be filtered away

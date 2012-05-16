@@ -36,6 +36,7 @@ public class SubredditFilter
 		setSubreddit(sub);
 		setEnabled(enabled);
 	}
+	
 	/**
 	 * Set name of the filter
 	 * @param name 
@@ -44,6 +45,7 @@ public class SubredditFilter
 	{
 		m_name = name;
 	}
+	
 	/**
 	 * Set pattern to exclude
 	 * @param pattern
@@ -62,6 +64,7 @@ public class SubredditFilter
 	{
 		return m_patternstring;
 	}
+	
 	/** 
 	 * Set pattern to exclude
 	 * @param p
@@ -71,6 +74,7 @@ public class SubredditFilter
 		m_pattern = p;
 		
 	}
+	
 	/** Get filter pattern
 	 * 
 	 * @return The pattern to exclude
@@ -79,6 +83,7 @@ public class SubredditFilter
 	{
 		return m_pattern;
 	}
+	
 	/**
 	 * Set subreddit
 	 * @param sub subreddit
@@ -87,6 +92,7 @@ public class SubredditFilter
 	{
 		m_subreddit = sub;
 	}
+	
 	/**
 	 * Get subreddit
 	 * @return name of subreddit
@@ -95,6 +101,7 @@ public class SubredditFilter
 	{
 		return m_subreddit;
 	}
+	
 	/**
 	 * Get name
 	 * @return name
@@ -103,6 +110,7 @@ public class SubredditFilter
 	{
 		return m_name;
 	}
+	
 	/** 
 	 * Filter enabled
 	 * @return True if filter is enabled, false otherwise
@@ -110,6 +118,7 @@ public class SubredditFilter
 	public boolean isEnabled() {
 		return m_enabled;
 	}
+	
 	/**
 	 * Enable/disable filter
 	 * @param e true to enable, false to disable
@@ -127,9 +136,12 @@ public class SubredditFilter
 		return m_name + DELIM + m_subreddit + DELIM + m_enabled + DELIM + m_patternstring;	
 	}
 	
-	/** Build a SubredditFilter from string */
+	/** 
+	 * Build a SubredditFilter from string 
+	 * @param serialized A SubredditFilter as serialized by SubredditFilter.toString()
+	 * @return The SubredditFilter constructed from the supplied string
+	 * */
 	public static SubredditFilter fromString(String serialized) {
-		
 		String[] fields = serialized.split(DELIM,4);
 		return new SubredditFilter(fields[0],fields[1],Boolean.parseBoolean(fields[2]), fields[3]);
 	}
