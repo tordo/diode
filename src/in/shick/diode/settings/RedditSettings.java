@@ -21,8 +21,7 @@ package in.shick.diode.settings;
 
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
+
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.cookie.Cookie;
@@ -176,7 +175,7 @@ public class RedditSettings {
     	editor.putBoolean(Constants.PREF_SHOW_NSFW, this.showNSFW);
     	
     	// Filters
-    	editor.putStringSet(Constants.PREF_REDDIT_FILTERS, getFilterStringSet());
+    	editor.putString(Constants.PREF_REDDIT_FILTERS, getFilterString());
     	editor.commit();
     }
     
@@ -252,7 +251,7 @@ public class RedditSettings {
         // Notifications
         this.setMailNotificationStyle(sessionPrefs.getString(Constants.PREF_MAIL_NOTIFICATION_STYLE, Constants.PREF_MAIL_NOTIFICATION_STYLE_DEFAULT));
         this.setMailNotificationService(sessionPrefs.getString(Constants.PREF_MAIL_NOTIFICATION_SERVICE, Constants.PREF_MAIL_NOTIFICATION_SERVICE_OFF));
-        this.setFilters(sessionPrefs.getStringSet(Constants.PREF_REDDIT_FILTERS, null));
+        this.setFilters(sessionPrefs.getString(Constants.PREF_REDDIT_FILTERS, null));
         
     }
     
@@ -417,8 +416,8 @@ public class RedditSettings {
 	public void setShowNSFW(boolean b){
 		this.showNSFW = b;
 	}
-	private void setFilters(Set<String> stringSet) {
-    	filters = parseFilterSet(stringSet);
+	private void setFilters(String f) {
+    	filters = parseFilterString(f);
 	}
 	public void setFilters(ArrayList<SubredditFilter> f)
 	{
@@ -428,22 +427,24 @@ public class RedditSettings {
 		return filters;
 	}
 	
-    private Set<String> getFilterStringSet() {
+    private String getFilterString() {
     	
-    	HashSet<String> ret = new HashSet<String>();
-     	
+    	String ret = "";
+    	if(filters == null) return ret;
     	for(SubredditFilter s: filters)
     	{
-    		ret.add(s.toString());
+    		ret += s.toString() + Constants.PREF_FILTER_DELIM;
     	}
     	return ret;
 	}
-    private ArrayList<SubredditFilter> parseFilterSet(Set<String> set) {
+    private ArrayList<SubredditFilter> parseFilterString(String filterString) {
     	ArrayList<SubredditFilter> ret = new ArrayList<SubredditFilter>();
-    	if(set == null) return ret;
-    	for(String s: set) 
+    	if(filterString == null) return ret;
+    	String filt[] = filterString.split(Constants.PREF_FILTER_DELIM);
+    	for(String s: filt) 
     	{
-    		ret.add(SubredditFilter.fromString(s));
+    		if(!s.isEmpty())
+    			ret.add(SubredditFilter.fromString(s));
     	}
     	return ret;
     }

@@ -20,9 +20,9 @@ public class SubredditFilter
 	protected String m_patternstring;
 	/** Whether or not this filter is enabled */
 	protected boolean m_enabled;
-	/** Delimiter for to/fromString */
+	/** Delimiter for to/fromString */	
+	private static final String DELIM = "\t";
 	
-	private static final String DELIM = "\n";
 	/**
 	 * Subreddit filter constructor
 	 * @param name Name of the filter
