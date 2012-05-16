@@ -268,5 +268,6 @@
     <string name="subreddit_name">Subreddit name</string>
     <string name="filter_text">Filter text</string>
     <string name="new_filter">New filter</string>
+    <string name="filter_help_text">No filters here. To add a filter, press the Menu button</string>
     
 </resources>

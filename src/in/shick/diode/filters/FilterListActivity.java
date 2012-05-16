@@ -18,7 +18,7 @@ import android.view.MenuItem;
  * @author tordo
  *
  */
-public class FilterConfigActivity extends ListActivity {
+public class FilterListActivity extends ListActivity {
 	
 	/** The filters we are displaying */
 	ArrayList<SubredditFilter> m_filters;
@@ -38,12 +38,14 @@ public class FilterConfigActivity extends ListActivity {
 	
 	@Override
 	public void onPause() {
+		// Save filters on pause
 		m_settings.setFilters(m_filters);
 		m_settings.saveRedditPreferences(this);
 		super.onPause();
 	}
 	@Override
 	public void onResume() {
+		// Re-load filters on resume (i.e. after editing)
 		m_settings.loadRedditPreferences(this,null);
 		m_filters = m_settings.getFilters();
 		m_adapter = new FilterAdapter(this,m_filters);

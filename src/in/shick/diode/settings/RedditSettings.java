@@ -443,7 +443,7 @@ public class RedditSettings {
     	String filt[] = filterString.split(Constants.PREF_FILTER_DELIM);
     	for(String s: filt) 
     	{
-    		if(!s.isEmpty())
+    		if(!StringUtils.isEmpty(s))
     			ret.add(SubredditFilter.fromString(s));
     	}
     	return ret;

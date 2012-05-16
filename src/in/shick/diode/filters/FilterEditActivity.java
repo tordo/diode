@@ -55,10 +55,15 @@ public class FilterEditActivity extends Activity {
 		
 	}
 	
+	/**
+	 * Save filter being edited
+	 */
 	protected void save() {
+		// Extract data from the UI
 		String name = m_tw_name.getText().toString().trim();
 		String subreddit = m_tw_subreddit.getText().toString().trim();
 		String filtertxt = m_tw_filtertxt.getText().toString();
+		// Build filter
 		SubredditFilter f;
 		ArrayList<SubredditFilter> filters = m_settings.getFilters();
 		if(m_filteridx == -1)
@@ -68,6 +73,7 @@ public class FilterEditActivity extends Activity {
 			filters.add(f);
 		}
 		else {
+			// We're editing, get a reference from filters
 			f = filters.get(m_filteridx);
 			f.setName(name);
 			f.setSubreddit(subreddit);

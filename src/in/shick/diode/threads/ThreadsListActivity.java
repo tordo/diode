@@ -44,7 +44,7 @@ import in.shick.diode.submit.SubmitLinkActivity;
 import in.shick.diode.things.ThingInfo;
 import in.shick.diode.threads.ShowThumbnailsTask.ThumbnailLoadAction;
 import in.shick.diode.user.ProfileActivity;
-import in.shick.diode.filters.FilterConfigActivity;
+import in.shick.diode.filters.FilterListActivity;
 import java.beans.PropertyChangeEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -1234,7 +1234,7 @@ public final class ThreadsListActivity extends ListActivity {
     		Common.goHome(this);
     		break;
     	case R.id.filter_menu_id:
-    		Intent in = new Intent(this,FilterConfigActivity.class);
+    		Intent in = new Intent(this,FilterListActivity.class);
     		startActivity(in);
     		return true;
     	case R.id.search:

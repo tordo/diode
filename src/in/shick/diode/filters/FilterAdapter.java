@@ -32,7 +32,23 @@ public class FilterAdapter extends ArrayAdapter<SubredditFilter>  {
 		super(ctx,0,filters);
 	}
 
-
+	/**
+	 * Override getCount to give us a spot to put a little help text
+	 */
+	@Override
+	public int getCount() 
+	{
+		int superCount = super.getCount();
+		if(superCount == 0)
+		{
+			// Return 1 if there is no filters - this will cause getView to be called, 
+			// and we fill the view from there
+			return 1;
+		}
+		else return superCount;
+	}
+	
+	
 	@Override
 	public View getView(final int itemId, View arg1, ViewGroup arg2) {
 		View view;
@@ -45,6 +61,16 @@ public class FilterAdapter extends ArrayAdapter<SubredditFilter>  {
 			view = arg1;
 		}
 		
+		// If there is no filters, show the help text (getCount should make sure we actually get here once)
+		if(super.getCount() == 0)
+		{
+			view = new TextView(getContext());
+			((TextView)view).setText(R.string.filter_help_text);
+			return view;
+		}
+	
+		// Now fill the view with the information from the SubredditFilter
+		
 		// Get ToggleButton and TextView
 		ToggleButton b = (ToggleButton)view.findViewById(R.id.enabled);
 		TextView t = (TextView)view.findViewById(R.id.name);
@@ -55,7 +81,7 @@ public class FilterAdapter extends ArrayAdapter<SubredditFilter>  {
 		b.setChecked(filter.isEnabled());
 		t.setText(filter.getName());
 		
-		
+		// Make the toggle button do its job
 		b.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 			
 			@Override
