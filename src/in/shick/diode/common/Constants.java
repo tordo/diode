@@ -321,6 +321,8 @@ public class Constants {
     public static final String PREF_FILTER_DELIM = "\n";
     public static final boolean PREF_SHOW_NSFW_DEFAULT = true;
     public static final String PREF_REDDIT_FILTERS = "REDDIT_FILTERS";
+    public static final String PREF_USE_INFINITE_SCROLL = "PREF_USE_INFINITE_SCROLL";
+    public static final boolean PREF_USE_INFINITE_SCROLL_DEFAULT = false;
 
     
     // Reddit's base URL, without trailing slash

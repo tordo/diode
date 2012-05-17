@@ -78,7 +78,7 @@
       		android:entryValues="@array/pref_rotation_values"
       		android:dialogTitle="@string/pref_rotation_dialogtitle" />
         		
-	</PreferenceCategory>
+	<CheckBoxPreference android:title="@string/use_infinite_scroll" android:key="PREF_USE_INFINITE_SCROLL" /></PreferenceCategory>
 
 	<PreferenceCategory android:title="@string/pref_filters_category">
 
@@ -122,6 +122,7 @@
 			android:title="@string/pref_load_thumbnails_only_wifi"
 			android:defaultValue="false"
 			android:dependency="load_thumbnails" />
+		
 	</PreferenceCategory>
 
 </PreferenceScreen>

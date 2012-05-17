@@ -83,6 +83,7 @@ import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.webkit.CookieSyncManager;
+import android.widget.AbsListView;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -141,6 +142,9 @@ public final class ThreadsListActivity extends ListActivity {
     private String mSortByUrl = Constants.ThreadsSort.SORT_BY_HOT_URL;
     private String mSortByUrlExtra = "";
     private String mJumpToThreadId = null;
+    
+    // true if infinite scroll loading is in progress. Is a Boolean and not a boolean so it can be used as a lock
+    private Boolean mIsInfiniteLoading = false;
     // End navigation variables
     
     // Menu
@@ -223,6 +227,7 @@ public final class ThreadsListActivity extends ListActivity {
 		else {
         	new MyDownloadThreadsTask(mSettings.getHomepage()).execute();
         }
+		
     }
     
     @Override
@@ -665,6 +670,7 @@ public final class ThreadsListActivity extends ListActivity {
 	            // If we are not using the persistent navbar, then show as ListView footer instead
 		        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 		        mNextPreviousView = inflater.inflate(R.layout.next_previous_list_item, null);
+		       
 		        getListView().addFooterView(mNextPreviousView);
         	}
         }
@@ -682,6 +688,9 @@ public final class ThreadsListActivity extends ListActivity {
 		    mThreadsAdapter.notifyDataSetChanged();  // Just in case
 		}
 	    Common.updateListDrawables(this, mSettings.getTheme());
+	    
+	    if(mSettings.isUseInfiniteScroll())
+			getListView().setOnScrollListener(new InfiniteScrollListener());
 	    updateNextPreviousButtons();
     }
     
@@ -718,7 +727,6 @@ public final class ThreadsListActivity extends ListActivity {
      *        If the number of elements in subreddit is >= 2, treat 2nd element as "after" 
      */
     private class MyDownloadThreadsTask extends DownloadThreadsTask {
-    	
     	public MyDownloadThreadsTask(String subreddit) {
 			super(getApplicationContext(),
 					ThreadsListActivity.this.mClient,
@@ -746,7 +754,7 @@ public final class ThreadsListActivity extends ListActivity {
 					ThreadsListActivity.this.mSortByUrlExtra,
 					subreddit, after, before, count);
 		}
-
+     
 		@Override
     	protected void saveState() {
 			mSettings.setModhash(mModhash);
@@ -1577,5 +1585,92 @@ public final class ThreadsListActivity extends ListActivity {
 		    	// Ignore.
 		    }
         }
+    }
+    
+    /**
+     * Trigger infinite scroll refresh
+     * 
+     */
+    protected void triggerInfiniteScrollRefresh()
+    {
+    	// Remember that posts may be filtered away, so we have to load posts from mLastBefore
+    	new InfiniteScrollDownloadTask(mSubreddit, mAfter, null, Constants.DEFAULT_THREAD_DOWNLOAD_LIMIT).execute();
+    }
+    /** 
+     * Infinite scroll handler. The idea is that, when the view is scrolled far enough for the last item to be visible
+     * then start downloading the next set of elements.
+     */
+    private class InfiniteScrollListener implements AbsListView.OnScrollListener 
+    {
+
+		@Override
+		public void onScroll(AbsListView view, int firstVisibleItem,
+				int visibleItemCount, int totalItemCount) 
+		{
+			// Don't do anything if we can't scroll
+			if(totalItemCount == visibleItemCount) return;
+			synchronized(mIsInfiniteLoading) 
+			{
+				if(mIsInfiniteLoading) return;
+			}
+			if(firstVisibleItem + visibleItemCount == totalItemCount) {
+				// The last item is visible, so trigger a refresh
+				triggerInfiniteScrollRefresh();
+			}
+		}
+
+		@Override
+		public void onScrollStateChanged(AbsListView view, int scrollState) 
+		{
+			
+		}
+    }
+    /**
+     * InfiniteScrollDownloadTask
+     * 
+     */
+    private class InfiniteScrollDownloadTask extends MyDownloadThreadsTask {
+
+		public InfiniteScrollDownloadTask(String subreddit, String after,
+				String before, int count) {
+			super(subreddit, after, before, count);
+		}
+		
+		public void onPreExecute()
+		{
+    		if (mContentLength == -1) {
+    			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_INDETERMINATE_ON);
+    		}
+    		else {
+    			getWindow().setFeatureInt(Window.FEATURE_PROGRESS, 0);
+    		}
+    		synchronized(mIsInfiniteLoading){
+    			mIsInfiniteLoading = true;
+    		}
+		}
+		
+		@Override
+		public void onPostExecute(Boolean success)
+		{
+			if(!success) {
+				Toast.makeText(mContext, "Sorry! Could not read subreddit.", Toast.LENGTH_SHORT).show();
+				return;
+			}
+			
+			if (mContentLength == -1)
+				getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_INDETERMINATE_OFF);
+			else
+				getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_END);
+			
+			synchronized(THREAD_ADAPTER_LOCK) {
+				mThreadsList.addAll(mThingInfos);
+				mThreadsAdapter.notifyDataSetChanged();
+			}
+			synchronized(mIsInfiniteLoading){
+				mIsInfiniteLoading = false;
+			}
+		}
+		
+
     }
 }

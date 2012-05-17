@@ -63,7 +63,8 @@ public class RedditSettings {
 	private String commentsSortByUrl = Constants.CommentsSort.SORT_BY_BEST_URL;
 	
     private boolean showNSFW = false;
-	
+	private boolean useInfiniteScroll = false;
+    
 	// --- Themes ---
 	private int theme = R.style.Reddit_Light_Medium;
 	private int rotation = -1;  // -1 means unspecified
@@ -173,7 +174,8 @@ public class RedditSettings {
     	
     	// Show NSFW
     	editor.putBoolean(Constants.PREF_SHOW_NSFW, this.showNSFW);
-    	
+    	// Infinite scroll
+    	editor.putBoolean(Constants.PREF_USE_INFINITE_SCROLL, this.useInfiniteScroll);
     	// Filters
     	editor.putString(Constants.PREF_REDDIT_FILTERS, getFilterString());
     	editor.commit();
@@ -245,6 +247,8 @@ public class RedditSettings {
         // Thumbnails on Wifi
         this.setLoadThumbnailsOnlyWifi(sessionPrefs.getBoolean(Constants.PREF_LOAD_THUMBNAILS_ONLY_WIFI, false));
         
+        // Infinite scroll
+        this.setUseInfiniteScroll(sessionPrefs.getBoolean(Constants.PREF_USE_INFINITE_SCROLL, Constants.PREF_USE_INFINITE_SCROLL_DEFAULT));
         
         // NSFW
         this.setShowNSFW(sessionPrefs.getBoolean(Constants.PREF_SHOW_NSFW, Constants.PREF_SHOW_NSFW_DEFAULT));
@@ -339,6 +343,12 @@ public class RedditSettings {
 		this.saveHistory = saveHistory;
 	}
 
+	public void setUseInfiniteScroll(boolean inf) {
+		this.useInfiniteScroll = inf;
+	}
+	public boolean isUseInfiniteScroll() {
+		return this.useInfiniteScroll;
+	}
 	public boolean isAlwaysShowNextPrevious() {
 		return alwaysShowNextPrevious;
 	}
