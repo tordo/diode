@@ -14,7 +14,7 @@ Contributors
 ------------
 
 * primehunter326 ( search! )
-* tordo ( NSFW filter option )
+* tordo ( NSFW filter option, link text filtering )
 * veeti ( reuse bugfix for text user flair )
 * v00d00 ( text user flair )
 * ulfada
