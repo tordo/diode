@@ -1,6 +1,9 @@
 package in.shick.diode.filters;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
@@ -28,6 +31,8 @@ public class FilterListActivity extends Activity
 	FilterAdapter m_adapter;
 	/** Reddit settings*/
 	RedditSettings m_settings;
+    /** Constant indiciating dialog to confirm deletion of all filters */
+    public static final int DIALOG_CLEAR = 0;
 	
 	@Override
 	public void onCreate(Bundle b) 
@@ -85,13 +90,45 @@ public class FilterListActivity extends Activity
 		switch(item.getItemId())
 		{
         case R.id.clear:
-            m_filters.clear();
-            m_adapter.notifyDataSetChanged();
+            showDialog(DIALOG_CLEAR);
             return true;
 		default:
 			return false;
 		}
 	}
 
+    @Override
+    protected Dialog onCreateDialog(int id)
+    {
+        Dialog dialog;
+        switch(id)
+        {
+        case DIALOG_CLEAR:
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle(getString(R.string.filter_clear_confirm_title))
+                   .setIcon(android.R.drawable.ic_dialog_alert)
+                   .setCancelable(true)
+                   .setPositiveButton(getString(R.string.filter_clear_confirm_yes),
+                           new DialogInterface.OnClickListener() {
+                       public void onClick(DialogInterface dialog, int id) {
+                            m_filters.clear();
+                            m_adapter.notifyDataSetChanged();
+                       }
+                   })
+                   .setNegativeButton(getString(R.string.filter_clear_confirm_no),
+                           new DialogInterface.OnClickListener() {
+                       public void onClick(DialogInterface dialog, int id) {
+                            dialog.cancel();
+                       }
+                   });
+
+            dialog = builder.create();
+            
+            break;
+        default:
+            dialog = null;
+        }
+        return dialog;
+    }
 	
 }
