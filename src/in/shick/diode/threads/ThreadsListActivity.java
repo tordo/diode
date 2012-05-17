@@ -1233,10 +1233,6 @@ public final class ThreadsListActivity extends ListActivity {
     	case android.R.id.home:
     		Common.goHome(this);
     		break;
-    	case R.id.filter_menu_id:
-    		Intent in = new Intent(this,FilterListActivity.class);
-    		startActivity(in);
-    		return true;
     	case R.id.search:
         	startActivityForResult(new Intent(this, RedditSearchActivity.class), Constants.ACTIVITY_SEARCH_REDDIT);
     		break;

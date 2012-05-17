@@ -21,6 +21,7 @@ package in.shick.diode.settings;
 
 import android.app.NotificationManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.Preference;
@@ -28,10 +29,11 @@ import android.preference.PreferenceActivity;
 import android.preference.PreferenceManager;
 import android.widget.Toast;
 
-import in.shick.diode.R;
 import in.shick.diode.common.Constants;
 import in.shick.diode.common.util.Util;
+import in.shick.diode.filters.FilterListActivity;
 import in.shick.diode.mail.EnvelopeService;
+import in.shick.diode.R;
 
 public class RedditPreferencesPage extends PreferenceActivity
         implements Preference.OnPreferenceChangeListener, 
@@ -85,6 +87,15 @@ public class RedditPreferencesPage extends PreferenceActivity
         		.equals(Constants.PREF_MAIL_NOTIFICATION_STYLE_OFF)) {
         	e.setEnabled(false);
         }
+
+        e = findPreference(Constants.PREF_REDDIT_FILTERS);
+        e.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+            public boolean onPreferenceClick(Preference pref) {
+                Intent nextActivity = new Intent(RedditPreferencesPage.this, FilterListActivity.class);
+                startActivity(nextActivity);
+                return true;
+            }
+        });
         
         
         

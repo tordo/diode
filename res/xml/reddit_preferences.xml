@@ -77,8 +77,19 @@
       		android:entries="@array/pref_rotation_choices"
       		android:entryValues="@array/pref_rotation_values"
       		android:dialogTitle="@string/pref_rotation_dialogtitle" />
-   		<CheckBoxPreference android:title="@string/show_nsfw" android:key="SHOW_NSFW"/>
         		
+	</PreferenceCategory>
+
+	<PreferenceCategory android:title="@string/pref_filters_category">
+
+        <CheckBoxPreference
+            android:title="@string/show_nsfw"
+            android:key="SHOW_NSFW"/>
+
+        <Preference
+            android:title="@string/pref_title_filter"
+            android:key="REDDIT_FILTERS"
+            />
 	</PreferenceCategory>
 	
 	<PreferenceCategory android:title="@string/pref_mail_category">
