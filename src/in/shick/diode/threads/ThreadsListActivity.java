@@ -1609,11 +1609,14 @@ public final class ThreadsListActivity extends ListActivity {
 		{
 			// Don't do anything if we can't scroll
 			if(totalItemCount == visibleItemCount) return;
-			synchronized(mIsInfiniteLoading) 
-			{
-				if(mIsInfiniteLoading) return;
-			}
+			
+			
 			if(firstVisibleItem + visibleItemCount == totalItemCount) {
+				// Bail out if we're in the process of loading a new page
+				synchronized(mIsInfiniteLoading) 
+				{
+					if(mIsInfiniteLoading) return;
+				}
 				// The last item is visible, so trigger a refresh
 				triggerInfiniteScrollRefresh();
 			}
