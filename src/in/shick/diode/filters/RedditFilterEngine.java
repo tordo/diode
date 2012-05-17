@@ -68,7 +68,7 @@ public class RedditFilterEngine
 		for(SubredditFilter f : m_filters)
 		{
 			// Check if the post is in the correct subreddit
-			if(f.isEnabled() && t.getSubreddit().equals(f.getSubReddit())) 
+			if(f.isEnabled() && t.getSubreddit().equalsIgnoreCase(f.getSubReddit())) 
 			{
 				if(f.getPattern().matcher(t.getTitle()).find()) {
 					// We found a match! The post sohuld be filtered

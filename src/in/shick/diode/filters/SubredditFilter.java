@@ -53,7 +53,7 @@ public class SubredditFilter
 	public void setPattern(String pattern)
 	{
 		m_patternstring = pattern;
-		setPattern(Pattern.compile(Pattern.quote(pattern)));
+		setPattern(Pattern.compile("(?i)" + Pattern.quote(pattern)));
 	}
 	
 	/**
