@@ -1593,7 +1593,7 @@ public final class ThreadsListActivity extends ListActivity {
      */
     protected void triggerInfiniteScrollRefresh()
     {
-    	// Remember that posts may be filtered away, so we have to load posts from mLastBefore
+    	// Remember that posts may be filtered away, so we have to load posts from mAfter
     	new InfiniteScrollDownloadTask(mSubreddit, mAfter, null, Constants.DEFAULT_THREAD_DOWNLOAD_LIMIT).execute();
     }
     /** 
