@@ -44,4 +44,7 @@
     
     <color name="medium_pale_yellow">#ffffff99</color>
     <color name="translucent_yellow">#80ffff00</color>
+
+    <color name="dividers">#ff888888</color>
+    <color name="dividers_light">#ff888888</color>
 </resources>

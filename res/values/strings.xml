@@ -261,13 +261,19 @@
     <string name="vote_down_arrow_content_description">downvote arrow</string>
     <string name="thumbnail_content_description">thumbnail (click to view link)</string>
     <string name="show_nsfw">Show NSFW Links</string>
+
+    <!-- filters -->
     <string name="save">Save</string>
     <string name="edit_filter">Edit filter</string>
     <string name="delete_filter">Delete filter</string>
     <string name="filter_name">Filter name</string>
     <string name="subreddit_name">Subreddit name</string>
     <string name="filter_text">Filter text</string>
-    <string name="new_filter">New filter</string>
-    <string name="filter_help_text">No filters here. To add a filter, press the Menu button</string>
+    <string name="clear_filters">Delete All</string>
+    <string name="filter_help_text">Links with titles that contain filter text will not be displayed.</string>
+    <string name="filter_add_button">new filter</string>
+
+    <string name="pref_filters_category">Link filtering</string>
+    <string name="pref_title_filter">Edit title filters</string>
     
 </resources>
